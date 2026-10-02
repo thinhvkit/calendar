@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendar</title>
+<meta name="description" content="A simple, private calendar for events and daily notes. Works offline — your data stays on your device.">
+<meta name="theme-color" content="#f7f5f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calendar">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1 class="title"><span id="mMonth"></span> <span id="mYear" class="year"></span></h1>
+    <div class="toolbar">
+      <button class="btn" id="todayBtn" title="Go to today (T)">Today</button>
+      <div class="seg" role="group" aria-label="Change month">
+        <button class="icon-btn" id="prevBtn" aria-label="Previous month" title="Previous month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="icon-btn" id="nextBtn" aria-label="Next month" title="Next month">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
+      <button class="icon-btn data-btn" id="dataBtn" aria-label="Your data and backups" title="Your data and backups">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg>
+        <span class="badge" id="dataBadge" hidden></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="month" aria-label="Month view">
+      <div class="weekdays" id="weekdays" aria-hidden="true"></div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <aside class="day" aria-label="Selected day">
+      <div class="day-head">
+        <div class="day-title">
+          <div class="dow"><span id="dDow"></span><span class="rel" id="dRel"></span></div>
+          <h2 class="date" id="dDate"></h2>
+        </div>
+        <button class="btn primary add-btn" id="addBtn" title="New event (N)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Event
+        </button>
+      </div>
+
+      <section class="day-section">
+        <h3 class="label">Schedule</h3>
+        <ul class="events" id="events"></ul>
+      </section>
+
+      <section class="day-section">
+        <h3 class="label"><span>Note</span><span class="note-status" id="noteStatus"></span></h3>
+        <textarea class="note" id="note" rows="6" placeholder="Anything to remember about this day…"></textarea>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<button class="fab" id="fab" aria-label="New event">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Event editor -->
+<dialog class="sheet" id="eventSheet" aria-labelledby="evSheetTitle">
+  <form class="sheet-inner" id="eventForm">
+    <div class="grabber" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <h2 id="evSheetTitle">New event</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <div class="sheet-body">
+      <input class="title-input" id="evTitle" placeholder="Event title" required autocomplete="off" maxlength="200" aria-label="Title">
+      <div class="row2">
+        <label class="field"><span>Date</span><input class="input" type="date" id="evDate" required></label>
+        <label class="field" id="evTimeField"><span>Time</span><input class="input" type="time" id="evTime"></label>
+      </div>
+      <label class="switch-row">
+        <span>All day</span>
+        <input type="checkbox" class="switch" id="evAllDay">
+      </label>
+      <label class="field"><span>Details</span><textarea class="input" id="evDesc" rows="3" placeholder="Location, people, links…"></textarea></label>
+      <fieldset class="field">
+        <legend>Color</legend>
+        <div class="swatches" id="swatches"></div>
+      </fieldset>
+    </div>
+    <footer class="sheet-foot">
+      <button type="button" class="btn danger-ghost" id="evDelete">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Data & backup -->
+<dialog class="sheet" id="dataSheet" aria-labelledby="dataTitle">
+  <div class="sheet-inner">
+    <div class="grabber" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <h2 id="dataTitle">Your data</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <div class="sheet-body" id="dataBody"></div>
+  </div>
+</dialog>
+
+<!-- Confirm -->
+<dialog class="sheet small" id="askSheet" aria-labelledby="askTitle">
+  <form method="dialog" class="sheet-inner">
+    <div class="sheet-body ask-body">
+      <h2 id="askTitle"></h2>
+      <p id="askText"></p>
+    </div>
+    <footer class="sheet-foot">
+      <span class="spacer"></span>
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn primary" id="askOk" value="ok">OK</button>
+    </footer>
+  </form>
+</dialog>
+
+<input type="file" id="restoreInput" accept=".json,application/json" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
