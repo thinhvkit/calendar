@@ -77,6 +77,7 @@ async function persist() {
   broadcast();
   scheduleLinkedWrite();
   renderBadge();
+  document.dispatchEvent(new Event('cal:change'));
 }
 
 async function loadAll() {
@@ -108,7 +109,7 @@ function normalize(obj) {
     out[k] = {
       note: typeof v.note === 'string' ? v.note : '',
       events: Array.isArray(v.events) ? v.events.filter(e => e && e.title).map(e => ({
-        id: String(e.id || uid()), title: String(e.title), time: e.time || '', desc: e.desc || '', color: e.color || COLORS[0].id,
+        id: String(e.id || uid()), title: String(e.title), time: e.time || '', desc: e.desc || '', color: e.color || COLORS[0].id, important: !!e.important,
       })) : [],
     };
   }
@@ -124,7 +125,7 @@ async function requestPersistence() {
 /* Cross-tab sync */
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('calendar-pwa') : null;
 function broadcast() { channel && channel.postMessage('changed'); }
-if (channel) channel.onmessage = async () => { await loadAll(); renderAll(); };
+if (channel) channel.onmessage = async () => { await loadAll(); renderAll(); document.dispatchEvent(new Event('cal:change')); };
 
 /* ---------------- dates ---------------- */
 function keyOf(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
@@ -191,6 +192,7 @@ function renderWeekdays() {
 function renderMonth() {
   $('mMonth').textContent = fmt.month.format(view);
   $('mYear').textContent = view.getFullYear();
+  $('mYear').classList.toggle('this-year', view.getFullYear() === new Date().getFullYear());
   document.title = `${fmt.month.format(view)} ${view.getFullYear()} · Calendar`;
 
   const offset = (view.getDay() + 6) % 7;
@@ -214,8 +216,8 @@ function renderMonth() {
 
     const shown = evs.length > maxChips + 1 ? evs.slice(0, maxChips) : evs.slice(0, maxChips + 1);
     const chips = shown.map(e => e.time
-      ? `<span class="chip timed" style="--c:${colorOf(e.color)}"><span class="t">${esc(fmtTime(e.time, true))}</span><span class="x">${esc(e.title)}</span></span>`
-      : `<span class="chip allday" style="--c:${colorOf(e.color)}"><span class="x">${esc(e.title)}</span></span>`).join('');
+      ? `<span class="chip timed${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="t">${esc(fmtTime(e.time, true))}</span><span class="x">${esc(e.title)}</span></span>`
+      : `<span class="chip allday${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="x">${esc(e.title)}</span></span>`).join('');
     const more = evs.length > shown.length ? `<span class="more">+${evs.length - shown.length} more</span>` : '';
     const dots = evs.slice(0, 3).map(e => `<i style="--c:${colorOf(e.color)}"></i>`).join('') + (info.note && evs.length < 3 ? '<i class="note"></i>' : '');
     const label = `${fmt.full.format(d)}${evs.length ? `, ${evs.length} event${evs.length > 1 ? 's' : ''}` : ''}${info.note ? ', has note' : ''}`;
@@ -240,7 +242,7 @@ function renderDay() {
   $('events').innerHTML = evs.length
     ? evs.map(e => `<li><button class="ev" data-id="${esc(e.id)}" style="--c:${colorOf(e.color)}">
         <span class="ev-time">${e.time ? esc(fmtTime(e.time)) : 'All day'}</span>
-        <span class="ev-main"><span class="ev-dot"></span><span><span class="ev-title">${esc(e.title)}</span>${e.desc ? `<span class="ev-desc">${esc(e.desc)}</span>` : ''}</span></span>
+        <span class="ev-main"><span class="ev-dot"></span><span><span class="ev-title">${esc(e.title)}</span>${e.important ? '<span class="imp-tag">Important</span>' : ''}${e.desc ? `<span class="ev-desc">${esc(e.desc)}</span>` : ''}</span></span>
       </button></li>`).join('')
     : `<li class="empty">Nothing scheduled. <button type="button" data-add>Add an event</button></li>`;
 
@@ -288,6 +290,7 @@ function openEditor(id = null) {
   $('evDate').value = selected;
   $('evTime').value = ev ? ev.time : '';
   $('evAllDay').checked = ev ? !ev.time : false;
+  $('evImportant').checked = ev ? !!ev.important : false;
   $('evDesc').value = ev ? ev.desc : '';
   const color = ev ? ev.color : (localStorage.getItem('calendar-last-color') || COLORS[0].id);
   const radio = form.querySelector(`input[name="color"][value="${COLORS.some(c => c.id === color) ? color : COLORS[0].id}"]`);
@@ -308,7 +311,7 @@ async function saveEditor(e) {
   const date = $('evDate').value || selected;
   const color = ($('eventForm').querySelector('input[name="color"]:checked') || {}).value || COLORS[0].id;
   localStorage.setItem('calendar-last-color', color);
-  const data = { title, time: $('evAllDay').checked ? '' : $('evTime').value, desc: $('evDesc').value.trim(), color };
+  const data = { title, time: $('evAllDay').checked ? '' : $('evTime').value, desc: $('evDesc').value.trim(), color, important: $('evImportant').checked };
 
   if (editing) {
     const src = dayOf(editing.key);
@@ -710,13 +713,25 @@ function wire() {
   window.addEventListener('pagehide', flushNote);
 }
 
+/* ---------------- public API (used by assistant.js) ---------------- */
+window.Cal = {
+  getDays: () => days, db, keyOf, parseKey, addDays, fmt, fmtTime, colorOf, esc, toast, isPhone, wireSheet, sorted,
+  select: (k) => select(k), openEditor: (k, id) => { if (k) select(k); openEditor(id || null); },
+  ready: false,
+};
+
 /* ---------------- start ---------------- */
 async function start() {
   wire();
   await loadAll();
   await checkLinkedPermission();
+  const qDay = new URLSearchParams(location.search).get('day');
+  if (qDay && /^\d{4}-\d{2}-\d{2}$/.test(qDay)) { selected = qDay; view = startOfMonth(parseKey(qDay)); history.replaceState(null, '', location.pathname); }
   renderAll();
   requestPersistence();
+  window.Cal.ready = true;
+  document.dispatchEvent(new Event('cal:ready'));
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-day') select(e.data.key); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }

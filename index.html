@@ -30,12 +30,17 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
+      <button class="icon-btn" id="asstBtn" aria-label="Assistant" title="Assistant (A)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20.4l-.8-1.9-1.9-.8 1.9-.8z"/></svg>
+      </button>
       <button class="icon-btn data-btn" id="dataBtn" aria-label="Your data and backups" title="Your data and backups">
         <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/><path d="M5 12v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/></svg>
         <span class="badge" id="dataBadge" hidden></span>
       </button>
     </div>
   </header>
+
+  <div class="urgent" id="urgent" hidden></div>
 
   <main class="layout">
     <section class="month" aria-label="Month view">
@@ -92,6 +97,10 @@
         <span>All day</span>
         <input type="checkbox" class="switch" id="evAllDay">
       </label>
+      <label class="switch-row">
+        <span>Important<small>Get alerted earlier and keep it at the top</small></span>
+        <input type="checkbox" class="switch" id="evImportant">
+      </label>
       <label class="field"><span>Details</span><textarea class="input" id="evDesc" rows="3" placeholder="Location, people, links…"></textarea></label>
       <fieldset class="field">
         <legend>Color</legend>
@@ -136,9 +145,41 @@
   </form>
 </dialog>
 
+<!-- Assistant -->
+<dialog class="sheet asst" id="asstSheet" aria-labelledby="asstTitle">
+  <div class="sheet-inner asst-inner">
+    <div class="grabber" aria-hidden="true"></div>
+    <header class="sheet-head">
+      <div>
+        <h2 id="asstTitle">Assistant</h2>
+        <div class="asst-sub" id="asstSub">Private · runs on this device</div>
+      </div>
+      <div class="asst-head-actions">
+        <button type="button" class="icon-btn" id="asstSettingsBtn" aria-label="Assistant settings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" data-close aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </header>
+    <div class="asst-tabs" role="tablist">
+      <button role="tab" class="tab" data-tab="week" aria-selected="true">This week</button>
+      <button role="tab" class="tab" data-tab="ask" aria-selected="false">Ask</button>
+    </div>
+    <div class="asst-body" id="asstBody"></div>
+    <form class="asst-input" id="asstForm" hidden>
+      <input id="asstQ" class="input" placeholder="Ask about your events…" autocomplete="off" enterkeyhint="send">
+      <button class="btn primary icon-only" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </form>
+  </div>
+</dialog>
+
 <input type="file" id="restoreInput" accept=".json,application/json" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="alerts-core.js" defer></script>
 <script src="app.js" defer></script>
+<script src="assistant.js" defer></script>
 </body>
 </html>
