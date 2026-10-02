@@ -2,7 +2,7 @@
 // Bump VERSION when files change.
 importScripts('alerts-core.js');
 
-const VERSION = 'calendar-v4.0.0';
+const VERSION = 'calendar-v4.0.1';
 const ASSETS = [
   './',
   './index.html',

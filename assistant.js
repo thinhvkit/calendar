@@ -397,8 +397,22 @@ function factCheck(text, allowedItems) {
     const nums = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
     const cm = n.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+events?\b/);
     if (cm && (nums[cm[1]] || +cm[1]) !== allowedItems.length) return false;
-    if (!mine.length) return !/\b\d{1,2}(:\d{2})?\s*(am|pm)\b/.test(n); // no event named: allow generic sentences without stray times
+    if (!mine.length) {
+      // no event named: only allow generic sentences — no stray times, weekdays, dates, or claims about importance
+      if (/\b\d{1,2}(:\d{2})?\s*(am|pm)\b/.test(n)) return false;
+      if (/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/.test(n)) return false;
+      if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b|\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/.test(n)) return false;
+      if (/\b(important|priority|critical|next)\b/.test(n)) return false;
+      return true;
+    }
     const wd = WD_NAMES.filter(w => new RegExp(`\\b${w}\\b`).test(n));
+    // "next (important) event is X" must really be the next one
+    if (/\bnext\b/.test(n)) {
+      const nowMs = Date.now() - 15 * 6e4;
+      const up = allowedItems.filter(i => i.key > t || (i.key === t && (i.allDay || i.start.getTime() >= nowMs)))
+        .filter(i => !/\bimportant\b/.test(n) || i.ev.important).sort(byStart);
+      if (up.length && !mine.some(i => norm(i.ev.title) === norm(up[0].ev.title))) return false;
+    }
     if (wd.length && !mine.some(i => wd.includes(WD_NAMES[parseKey(i.key).getDay()]))) return false;
     if (/\btomorrow\b/.test(n) && !mine.some(i => i.key === tm)) return false;
     if (/\btoday\b/.test(n) && !mine.some(i => i.key === t)) return false;
