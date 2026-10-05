@@ -15,6 +15,19 @@ A simple, private calendar for **events** and **daily notes**, with a built-in *
 
 Mark an event **Important** in the editor so it gets earlier alerts and is highlighted.
 
+## Repeating events
+In the event editor, pick **Never / Daily / Weekly / Monthly / Yearly**, and optionally an end date.
+- Monthly on the 29th–31st skips months that don't have that day. A yearly event on Feb 29 only appears in leap years.
+- When you edit or delete one occurrence, the app asks whether to change **This event only**, **This and following events**, or **All events in the series**.
+
+## Photos
+Each day has a **Photos** section with **Take photo** (opens the camera) and **From library**. On desktop you can also drag photos onto the day panel.
+- Photos are copied into the app's private storage on your device, so they stay in the app even if you delete them from your phone's photo library.
+- Browsers never let web pages keep a link to a file in your photo library, which is why the app keeps its own copy.
+- If a library photo was taken on a different day, the app offers to **move it to that day**, based on the date stored inside the photo.
+- Tap a photo to open the full-screen viewer. Swipe between photos, **Save to Photos** (share sheet), or remove it (with undo).
+- **Back up** includes photos by default, so a single file restores everything.
+
 ## Your data
 - Stored only on your device (IndexedDB). Nothing is uploaded, including what you ask the AI.
 - **Back up** saves a `.json` file. On phones it opens the share sheet, so you can save to Files, iCloud Drive or Google Drive.

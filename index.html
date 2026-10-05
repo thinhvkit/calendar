@@ -69,6 +69,23 @@
         <h3 class="label"><span>Note</span><span class="note-status" id="noteStatus"></span></h3>
         <textarea class="note" id="note" rows="6" placeholder="Anything to remember about this day…"></textarea>
       </section>
+
+      <section class="day-section">
+        <h3 class="label"><span>Photos</span><span class="photo-count" id="photoCount"></span></h3>
+        <div class="photos" id="photos"></div>
+        <div class="photo-actions">
+          <label class="btn subtle photo-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.6l1.2-1.8A1.5 1.5 0 0 1 10.5 3.5h3a1.5 1.5 0 0 1 1.2.7L15.9 6h1.6A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.5"/></svg>
+            Take photo
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+          </label>
+          <label class="btn subtle photo-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 15.5l-4.8-4.8a1.5 1.5 0 0 0-2.1 0L5 19.3"/></svg>
+            From library
+            <input type="file" id="libraryInput" accept="image/*" multiple hidden>
+          </label>
+        </div>
+      </section>
     </aside>
   </main>
 </div>
@@ -101,6 +118,20 @@
         <span>Important<small>Get alerted earlier and keep it at the top</small></span>
         <input type="checkbox" class="switch" id="evImportant">
       </label>
+      <div class="field">
+        <span>Repeat</span>
+        <div class="seg-ctl repeat-ctl" id="repeatCtl" role="radiogroup" aria-label="Repeat">
+          <button type="button" data-rep="" aria-pressed="true">Never</button>
+          <button type="button" data-rep="daily" aria-pressed="false">Daily</button>
+          <button type="button" data-rep="weekly" aria-pressed="false">Weekly</button>
+          <button type="button" data-rep="monthly" aria-pressed="false">Monthly</button>
+          <button type="button" data-rep="yearly" aria-pressed="false">Yearly</button>
+        </div>
+        <div class="repeat-more" id="repeatMore" hidden>
+          <span class="repeat-sum" id="repeatSum"></span>
+          <label class="until"><span>Ends</span><input class="input" type="date" id="evUntil" aria-label="Repeat until"><button type="button" class="clear-until" id="clearUntil" aria-label="Repeat forever">Never</button></label>
+        </div>
+      </div>
       <label class="field"><span>Details</span><textarea class="input" id="evDesc" rows="3" placeholder="Location, people, links…"></textarea></label>
       <fieldset class="field">
         <legend>Color</legend>
@@ -172,6 +203,45 @@
       <input id="asstQ" class="input" placeholder="Ask about your events…" autocomplete="off" enterkeyhint="send">
       <button class="btn primary icon-only" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </form>
+  </div>
+</dialog>
+
+<!-- Repeating event: which occurrences? -->
+<dialog class="sheet small" id="scopeSheet" aria-labelledby="scopeTitle">
+  <form method="dialog" class="sheet-inner">
+    <div class="sheet-body ask-body">
+      <h2 id="scopeTitle">This is a repeating event</h2>
+      <p id="scopeText"></p>
+      <div class="scope-opts">
+        <button class="btn" value="one">This event only</button>
+        <button class="btn" value="future">This and following events</button>
+        <button class="btn" value="all">All events in the series</button>
+      </div>
+    </div>
+    <footer class="sheet-foot">
+      <span class="spacer"></span>
+      <button class="btn" value="cancel">Cancel</button>
+    </footer>
+  </form>
+</dialog>
+
+<!-- Photo viewer -->
+<dialog class="viewer" id="viewer" aria-label="Photo">
+  <div class="viewer-top">
+    <button type="button" class="icon-btn v-btn" data-close aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="v-meta"><strong id="vDate"></strong><span id="vInfo"></span></div>
+    <span class="v-count" id="vCount"></span>
+  </div>
+  <div class="viewer-stage" id="vStage">
+    <button type="button" class="v-nav prev" id="vPrev" aria-label="Previous photo"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <img id="vImg" alt="">
+    <button type="button" class="v-nav next" id="vNext" aria-label="Next photo"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+  <div class="viewer-bar">
+    <button type="button" class="v-act" id="vSave"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg><span id="vSaveLabel">Save to Photos</span></button>
+    <button type="button" class="v-act" id="vDelete"><svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span>Remove</span></button>
   </div>
 </dialog>
 

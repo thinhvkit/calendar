@@ -52,11 +52,20 @@ function item(k, e) {
   return { key: k, ev: e, start, allDay: !e.time };
 }
 const byStart = (a, b) => a.key.localeCompare(b.key) || (a.allDay === b.allDay ? (a.ev.time || '').localeCompare(b.ev.time || '') : a.allDay ? -1 : 1);
+/* Every occurrence (repeating series expanded) within a window around today:
+ * from the earliest stored day (≥ 2 years back) to ~13 months ahead or the last stored day. */
+let itemsCache = null;
 function allItems() {
-  const out = [], days = Cal.getDays();
-  for (const k in days) for (const e of days[k].events) out.push(item(k, e));
-  return out.sort(byStart);
+  if (itemsCache) return itemsCache;
+  const days = Cal.getDays(), keys = Object.keys(days).sort(), t = todayKey();
+  const lo = keys[0] && keys[0] < t ? (keys[0] > addDays(t, -730) ? keys[0] : addDays(t, -730)) : addDays(t, -30);
+  const hiStored = keys[keys.length - 1] || t;
+  const hi = hiStored > addDays(t, 400) ? hiStored : addDays(t, 400);
+  itemsCache = Cal.expand(lo, hi).map(o => item(o.key, o.ev)).sort(byStart);
+  return itemsCache;
 }
+document.addEventListener('cal:change', () => { itemsCache = null; });
+setInterval(() => { itemsCache = null; }, 60 * 60 * 1000);
 const between = (items, a, b) => items.filter(i => i.key >= a && i.key <= b);
 function when(i, long) {
   const d = parseKey(i.key);
@@ -210,7 +219,8 @@ function understand(q) {
   const wantsSummary = /\b(summar|overview|recap|plan|look like|what'?s? (on|up|happening))/.test(s);
 
   const hit = i => { const hay = norm(i.ev.title + ' ' + i.ev.desc); return kws.some(w => hay.includes(w)); };
-  const kwHits = kws.length ? all.filter(hit) : [];
+  let kwHits = kws.length ? all.filter(hit) : [];
+  if (kwHits.length > 20) { const recent = kwHits.filter(i => i.key >= addDays(t, -14)); if (recent.length) kwHits = recent; }
   const days = Cal.getDays();
   const noteHits = kws.length ? Object.entries(days).filter(([, d]) => d.note && kws.some(w => norm(d.note).includes(w))).map(([k]) => k) : [];
 
@@ -265,7 +275,7 @@ ${notesText}`;
   const line = i => {
     const d = parseKey(i.key);
     const rel = i.key === t ? ' (today)' : i.key === addDays(t, 1) ? ' (tomorrow)' : i.key === addDays(t, -1) ? ' (yesterday)' : '';
-    return `- ${EN.day.format(d)}${rel} · ${i.allDay ? 'all day' : Cal.fmtTime(i.ev.time)} · ${i.ev.title}${i.ev.important ? ' [important]' : ''}${i.ev.desc ? ` — ${i.ev.desc.replace(/\s+/g, ' ').slice(0, 100)}` : ''}`;
+    return `- ${EN.day.format(d)}${rel} · ${i.allDay ? 'all day' : Cal.fmtTime(i.ev.time)} · ${i.ev.title}${i.ev.important ? ' [important]' : ''}${i.ev.repeat ? ` [repeats ${i.ev.repeat.freq}]` : ''}${i.ev.desc ? ` — ${i.ev.desc.replace(/\s+/g, ' ').slice(0, 100)}` : ''}`;
   };
   const now = new Date();
   const prompt =
@@ -299,7 +309,7 @@ ${facts.length ? '\nFacts:\n' + facts.join('\n') : ''}${notesText ? '\n\nDay not
     if (noteHits.length) html += `<p>It's mentioned in your note on ${esc(listJoin(noteHits.map(k => L.dayShort.format(parseKey(k)))))}.</p>`;
   } else if (wantsNext || (wantsImportant && !r)) {
     const nx = upcoming[0];
-    html = nx ? `<p>${wantsImportant && !kws.length ? 'Your next important event is' : 'Next up:'} <strong>${esc(nx.ev.title)}</strong>, ${esc(when(nx, true))}.</p>${upcoming.length > 1 ? `<p class="muted">Then ${esc(listJoin(upcoming.slice(1, 3).map(i => `${i.ev.title} (${L.md.format(parseKey(i.key))})`)))}.</p>` : ''}`
+    html = nx ? `<p>${wantsImportant && !kws.length ? 'Your next important event is' : 'Next up:'} <strong>${esc(nx.ev.title)}</strong>, ${esc(when(nx, true))}.</p>${(() => { const seen = new Set([nx.ev.id]); const rest = upcoming.filter(i => !seen.has(i.ev.id) && seen.add(i.ev.id)).slice(0, 2); const yr = new Date().getFullYear(); return rest.length ? `<p class="muted">Then ${esc(listJoin(rest.map(i => `${i.ev.title} (${parseKey(i.key).getFullYear() === yr ? L.md.format(parseKey(i.key)) : L.dayShort.format(parseKey(i.key)) + ' ' + parseKey(i.key).getFullYear()})`)))}.</p>` : ''; })()}${nx.ev.repeat ? `<p class="muted">Repeats ${esc(nx.ev.repeat.freq)}.</p>` : ''}`
               : `<p>The last one was <strong>${esc(items[items.length - 1].ev.title)}</strong>, ${esc(when(items[items.length - 1], true))}. Nothing upcoming.</p>`;
   } else {
     html = `<p>${plural(items.length, 'event')} ${esc(label)}:</p>${list(items)}`;
