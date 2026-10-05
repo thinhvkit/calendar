@@ -729,6 +729,47 @@ html.viewer-open { overflow: hidden; }
   .repeat-ctl button { font-size: 12px; }
 }
 
+
+/* ============================================================
+   Main event: whole-day color
+   ============================================================ */
+.cell.filled { background: color-mix(in srgb, var(--day) 17%, var(--surface)); }
+.cell.filled .n { color: color-mix(in srgb, var(--day) 70%, var(--ink)); font-weight: 650; }
+.cell.filled.we .n { color: color-mix(in srgb, var(--day) 70%, var(--ink)); }
+.cell.filled .chip.allday { background: color-mix(in srgb, var(--c) 26%, var(--surface)); }
+.cell.filled .more, .cell.filled .chip .t, .cell.filled .marks { color: color-mix(in srgb, var(--day) 55%, var(--ink-2)); }
+.cell.filled.selected { background: color-mix(in srgb, var(--day) 27%, var(--surface)); }
+.cell.filled.selected .n { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--day) 80%, var(--ink)); }
+.cell.filled.today .n { background: var(--accent); color: var(--on-accent); }
+.cell.filled.out { background: color-mix(in srgb, var(--day) 8%, var(--surface)); }
+@media (hover: hover) { .cell.filled:not(.selected):hover { background: color-mix(in srgb, var(--day) 23%, var(--surface)); } }
+
+.day.filled { background: linear-gradient(to bottom, color-mix(in srgb, var(--day) 15%, var(--surface)), var(--surface) 190px); }
+.day.filled .dow { color: color-mix(in srgb, var(--day) 85%, var(--ink)); }
+.day.filled .rel { background: color-mix(in srgb, var(--day) 18%, var(--surface)); }
+.day-tag {
+  display: inline-block; margin-left: 8px; vertical-align: 2px;
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--c) 80%, var(--ink)); background: color-mix(in srgb, var(--c) 16%, var(--surface));
+  padding: 2px 6px; border-radius: 5px;
+}
+.main-row > span { display: block; }
+.main-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 8px; vertical-align: -1px; background: var(--day, var(--accent)); }
+.main-row:has(.switch:checked) { border-color: color-mix(in srgb, var(--day) 45%, var(--line)); background: color-mix(in srgb, var(--day) 9%, var(--surface)); }
+.main-row .switch:checked { background: var(--day, var(--accent)); }
+
+@media (max-width: 760px) {
+  .cell.filled, .cell.filled.selected, .cell.filled.out { background: transparent; }
+  .cell.filled::before {
+    content: ""; position: absolute; inset: 2px; border-radius: 11px; z-index: -1;
+    background: color-mix(in srgb, var(--day) 20%, var(--surface));
+  }
+  .cell.filled.out::before { background: color-mix(in srgb, var(--day) 9%, var(--surface)); }
+  .cell.filled.selected::before { background: color-mix(in srgb, var(--day) 32%, var(--surface)); }
+  .cell { isolation: isolate; }
+  .cell.filled .dots i { box-shadow: 0 0 0 1px color-mix(in srgb, var(--day) 20%, var(--surface)); }
+}
+
 /* ---------- motion ---------- */
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }

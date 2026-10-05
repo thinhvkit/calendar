@@ -112,6 +112,7 @@ function normalize(obj) {
       note: typeof v.note === 'string' ? v.note : '',
       events: Array.isArray(v.events) ? v.events.filter(e => e && e.title).map(e => {
         const ev = { id: String(e.id || uid()), title: String(e.title), time: e.time || '', desc: e.desc || '', color: e.color || COLORS[0].id, important: !!e.important };
+        if (e.main) ev.main = true;
         if (e.repeat && X.FREQS.includes(e.repeat.freq)) {
           ev.repeat = { freq: e.repeat.freq, until: /^\d{4}-\d{2}-\d{2}$/.test(e.repeat.until || '') ? e.repeat.until : '', except: Array.isArray(e.repeat.except) ? e.repeat.except.filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)) : [] };
         }
@@ -206,6 +207,11 @@ function occByDay(start, end) {
   for (const k in map) map[k].sort((a, b) => (a.ev.time || '').localeCompare(b.ev.time || '') || a.ev.title.localeCompare(b.ev.title));
   return map;
 }
+/* The day's "main" event colors the whole day. Explicit pick wins; important ones break ties. */
+function mainOf(evs) {
+  const m = evs.filter(e => e.main);
+  return m.find(e => e.important) || m[0] || null;
+}
 const findEvent = (origin, id) => (days[origin] && days[origin].events.find(e => e.id === id)) || null;
 const ORD = n => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
 function repeatText(freq, dateKey, until) {
@@ -257,6 +263,8 @@ function renderMonth() {
     if (i % 7 >= 5) cls.push('we');
     if (k === today) cls.push('today');
     if (k === selected) cls.push('selected');
+    const main = mainOf(evs);
+    if (main) cls.push('filled');
 
     const shown = evs.length > maxChips + 1 ? evs.slice(0, maxChips) : evs.slice(0, maxChips + 1);
     const chips = shown.map(e => e.time
@@ -268,7 +276,7 @@ function renderMonth() {
     const marks = (nPhotos ? `<span class="photo-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15.5l-4.8-4.8a1.5 1.5 0 0 0-2.1 0L5 19"/></svg>${nPhotos > 1 ? nPhotos : ''}</span>` : '') +
       (info.note ? '<span class="note-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>' : '');
 
-    html += `<button class="${cls.join(' ')}" data-k="${k}" aria-label="${esc(label)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
+    html += `<button class="${cls.join(' ')}"${main ? ` style="--day:${colorOf(main.color)}"` : ''} data-k="${k}" aria-label="${esc(main ? `${label}, main event ${main.title}` : label)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
       <span class="head"><span class="n">${d.getDate()}</span>${marks ? `<span class="marks">${marks}</span>` : ''}</span>
       <span class="chips">${chips}${more}</span>
       <span class="dots" aria-hidden="true">${dots}</span>
@@ -285,10 +293,14 @@ function renderDay() {
   $('dDate').textContent = d.getFullYear() === new Date().getFullYear() ? fmt.date.format(d) : fmt.dateYear.format(d);
 
   const occ = occByDay(selected, selected)[selected] || [];
+  const main = mainOf(occ.map(o => o.ev));
+  const panel = document.querySelector('.day');
+  panel.classList.toggle('filled', !!main);
+  if (main) panel.style.setProperty('--day', colorOf(main.color)); else panel.style.removeProperty('--day');
   $('events').innerHTML = occ.length
     ? occ.map(({ ev: e, origin }) => `<li><button class="ev" data-id="${esc(e.id)}" data-origin="${origin}" style="--c:${colorOf(e.color)}">
         <span class="ev-time">${e.time ? esc(fmtTime(e.time)) : 'All day'}</span>
-        <span class="ev-main"><span class="ev-dot"></span><span><span class="ev-title">${esc(e.title)}</span>${e.important ? '<span class="imp-tag">Important</span>' : ''}${e.repeat ? `<span class="ev-rep">${REPEAT_ICON}${esc(repeatText(e.repeat.freq, origin, e.repeat.until))}</span>` : ''}${e.desc ? `<span class="ev-desc">${esc(e.desc)}</span>` : ''}</span></span>
+        <span class="ev-main"><span class="ev-dot"></span><span><span class="ev-title">${esc(e.title)}</span>${e.important ? '<span class="imp-tag">Important</span>' : ''}${e === main ? '<span class="day-tag">Day color</span>' : ''}${e.repeat ? `<span class="ev-rep">${REPEAT_ICON}${esc(repeatText(e.repeat.freq, origin, e.repeat.until))}</span>` : ''}${e.desc ? `<span class="ev-desc">${esc(e.desc)}</span>` : ''}</span></span>
       </button></li>`).join('')
     : `<li class="empty">Nothing scheduled. <button type="button" data-add>Add an event</button></li>`;
   renderPhotos();
@@ -350,12 +362,14 @@ function openEditor(id = null, origin = null) {
   $('evTime').value = ev ? ev.time : '';
   $('evAllDay').checked = ev ? !ev.time : false;
   $('evImportant').checked = ev ? !!ev.important : false;
+  $('evMain').checked = ev ? !!ev.main : false;
   $('evDesc').value = ev ? ev.desc : '';
   const color = ev ? ev.color : (localStorage.getItem('calendar-last-color') || COLORS[0].id);
   const radio = form.querySelector(`input[name="color"][value="${COLORS.some(c => c.id === color) ? color : COLORS[0].id}"]`);
   if (radio) radio.checked = true;
   $('evUntil').value = ev && ev.repeat ? ev.repeat.until || '' : '';
   setRepeat(ev && ev.repeat ? ev.repeat.freq : '');
+  $('mainRow').style.setProperty('--day', colorOf(radio ? radio.value : COLORS[0].id));
   syncAllDay();
   $('eventSheet').showModal();
   if (!isPhone() || !ev) setTimeout(() => $('evTitle').focus(), 60);
@@ -394,8 +408,11 @@ async function saveEditor(e) {
   const color = ($('eventForm').querySelector('input[name="color"]:checked') || {}).value || COLORS[0].id;
   localStorage.setItem('calendar-last-color', color);
   const data = { title, time: $('evAllDay').checked ? '' : $('evTime').value, desc: $('evDesc').value.trim(), color, important: $('evImportant').checked };
+  if ($('evMain').checked) data.main = true;
   const newRepeat = repFreq ? { freq: repFreq, until, except: [] } : null;
-  const withRepeat = (obj, rep) => { const o = { ...obj }; if (rep) o.repeat = rep; else delete o.repeat; return o; };
+  const withRepeat = (obj, rep) => { const o = { ...obj }; if (rep) o.repeat = rep; else delete o.repeat; if (!data.main) delete o.main; return o; };
+  // one main event per day: picking this one un-picks other one-off events on that day
+  if (data.main) for (const other of dayOf(date).events) if (!other.repeat && (!editing || other.id !== editing.id)) delete other.main;
 
   let msg = 'Event added';
   const before = snapshot();
@@ -422,7 +439,7 @@ async function saveEditor(e) {
         msg = 'All events updated';
       } else if (scope === 'one') {
         ev.repeat.except = [...new Set([...(ev.repeat.except || []), occKey])];
-        dayOf(date).events.push({ id: uid(), ...data });
+        dayOf(date).events.push(withRepeat({ id: uid(), ...data }, null));
         msg = 'This event updated';
       } else { // future
         ev.repeat.until = addDays(occKey, -1);
@@ -1073,6 +1090,9 @@ function wire() {
   $('evAllDay').addEventListener('change', syncAllDay);
   $('eventForm').addEventListener('submit', saveEditor);
   $('evDelete').onclick = () => { const ed = editing; $('eventSheet').close(); if (ed) deleteEvent(ed.key, ed.origin, ed.id); };
+  const syncMainSwatch = () => { const c = ($('eventForm').querySelector('input[name="color"]:checked') || {}).value; $('mainRow').style.setProperty('--day', colorOf(c)); };
+  $('swatches').addEventListener('change', syncMainSwatch);
+  $('eventSheet').addEventListener('toggle', syncMainSwatch);
   $('repeatCtl').addEventListener('click', e => { const b = e.target.closest('[data-rep]'); if (b) setRepeat(b.dataset.rep); });
   $('evDate').addEventListener('change', syncRepeatSummary);
   $('evUntil').addEventListener('change', syncRepeatSummary);
