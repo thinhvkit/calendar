@@ -271,18 +271,25 @@ function renderMonth() {
       ? `<span class="chip timed${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="t">${esc(fmtTime(e.time, true))}</span><span class="x">${esc(e.title)}</span></span>`
       : `<span class="chip allday${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="x">${esc(e.title)}</span></span>`).join('');
     const more = evs.length > shown.length ? `<span class="more">+${evs.length - shown.length} more</span>` : '';
-    const dots = evs.slice(0, 3).map(e => `<i style="--c:${colorOf(e.color)}"></i>`).join('') + ((info.note || nPhotos) && evs.length < 3 ? '<i class="note"></i>' : '');
+    // indicator row: event dots (phone), note, photos — always present so the number never moves
+    const evDots = evs.slice(0, 3).map(e => `<i class="dot" style="--c:${colorOf(e.color)}"></i>`).join('') + (evs.length > 3 ? '<i class="dot plus"></i>' : '');
+    const firstPhoto = nPhotos ? info.photos[0].id : '';
     const label = `${fmt.full.format(d)}${evs.length ? `, ${evs.length} event${evs.length > 1 ? 's' : ''}` : ''}${info.note ? ', has note' : ''}${nPhotos ? `, ${nPhotos} photo${nPhotos > 1 ? 's' : ''}` : ''}`;
-    const marks = (nPhotos ? `<span class="photo-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15.5l-4.8-4.8a1.5 1.5 0 0 0-2.1 0L5 19"/></svg>${nPhotos > 1 ? nPhotos : ''}</span>` : '') +
-      (info.note ? '<span class="note-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>' : '');
+    const ind = `<span class="ind" aria-hidden="true"><span class="ind-ev">${evDots}</span>${info.note ? '<span class="ind-note"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></svg></span>' : ''}${nPhotos ? `<span class="ind-ph"><img alt="" data-thumb="${esc(firstPhoto)}" decoding="async">${nPhotos > 1 ? `<b>${nPhotos}</b>` : ''}</span>` : ''}</span>`;
+    if (nPhotos) cls.push('has-photo');
 
     html += `<button class="${cls.join(' ')}"${main ? ` style="--day:${colorOf(main.color)}"` : ''} data-k="${k}" aria-label="${esc(main ? `${label}, main event ${main.title}` : label)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
-      <span class="head"><span class="n">${d.getDate()}</span>${marks ? `<span class="marks">${marks}</span>` : ''}</span>
+      ${nPhotos ? `<span class="cover" aria-hidden="true"><img alt="" data-thumb="${esc(firstPhoto)}" decoding="async"></span>` : ''}
+      <span class="n">${d.getDate()}</span>
       <span class="chips">${chips}${more}</span>
-      <span class="dots" aria-hidden="true">${dots}</span>
+      ${ind}
     </button>`;
   }
   grid.innerHTML = html;
+  setTimeout(() => grid.querySelectorAll('img[data-thumb]').forEach(async img => {
+    const u = await thumbURL(img.dataset.thumb);
+    if (u) { img.onload = () => img.classList.add('in'); img.src = u; }
+  }), 0);
 }
 
 /* ---------------- render: day panel ---------------- */

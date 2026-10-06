@@ -193,28 +193,40 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   background: transparent;
   text-align: left;
   min-width: 0;
-  padding: 8px 8px 6px;
-  border-radius: 11px;
-  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 6px 7px;
+  border-radius: 12px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
   overflow: hidden;
-  position: relative;
+  position: relative; isolation: isolate;
   transition: background .15s;
 }
 .cell:focus-visible { outline-offset: -2px; }
-.cell .head { display: flex; align-items: center; justify-content: space-between; min-height: 26px; }
 .cell .n {
-  width: 28px; height: 28px; margin: -2px 0 0 -2px;
+  align-self: center; flex: none;
+  width: 30px; height: 30px; margin: 0;
   display: grid; place-items: center;
   border-radius: 50%;
-  font-size: 13.5px; font-weight: 560;
+  font-size: 14px; font-weight: 560; line-height: 1;
   font-variant-numeric: tabular-nums;
-  transition: background .15s, color .15s;
+  transition: background .15s, color .15s, box-shadow .15s;
 }
-.cell .note-mark { color: var(--ink-3); display: grid; }
-.cell .note-mark svg { width: 13px; height: 13px; stroke-width: 2; }
+.cell .chips { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .cell.we .n { color: var(--ink-2); }
 .cell.out .n { color: var(--ink-3); opacity: .55; }
-.cell.out .chips, .cell.out .note-mark { opacity: .45; }
+.cell.out .chips, .cell.out .ind { opacity: .45; }
+
+/* indicator row (note / photos; event dots on phone) */
+.ind { flex: none; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 20px; color: var(--ink-3); }
+.ind-ev { display: none; gap: 3px; align-items: center; }
+.ind-ev .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--c); }
+.ind-ev .dot.plus { background: var(--ink-3); opacity: .6; }
+.ind-note { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--sunken); }
+.ind-note svg { width: 12px; height: 12px; stroke-width: 2.2; }
+.ind-ph { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.ind-ph img { width: 20px; height: 20px; border-radius: 6px; object-fit: cover; background: var(--sunken); box-shadow: 0 0 0 1.5px var(--surface); opacity: 0; transition: opacity .25s; }
+.ind-ph img.in { opacity: 1; }
+.ind-ph b { font-weight: 650; }
+.cell .cover { display: none; }
 .cell.selected { background: var(--sunken); }
 .cell.selected .n { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .cell.today .n { background: var(--accent); color: var(--on-accent); font-weight: 650; box-shadow: none; }
@@ -661,9 +673,6 @@ dialog.sheet.asst { width: min(520px, calc(100vw - 32px)); height: min(760px, ca
 /* ============================================================
    Photos
    ============================================================ */
-.cell .marks { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-3); }
-.cell .marks .note-mark, .photo-mark { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.photo-mark svg { width: 13px; height: 13px; stroke-width: 2; }
 .photo-count { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ink-3); }
 .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 .photos.empty { display: block; margin-bottom: 8px; }
@@ -737,12 +746,14 @@ html.viewer-open { overflow: hidden; }
 .cell.filled .n { color: color-mix(in srgb, var(--day) 70%, var(--ink)); font-weight: 650; }
 .cell.filled.we .n { color: color-mix(in srgb, var(--day) 70%, var(--ink)); }
 .cell.filled .chip.allday { background: color-mix(in srgb, var(--c) 26%, var(--surface)); }
-.cell.filled .more, .cell.filled .chip .t, .cell.filled .marks { color: color-mix(in srgb, var(--day) 55%, var(--ink-2)); }
+.cell.filled .more, .cell.filled .chip .t, .cell.filled .ind { color: color-mix(in srgb, var(--day) 55%, var(--ink-2)); }
 .cell.filled.selected { background: color-mix(in srgb, var(--day) 27%, var(--surface)); }
 .cell.filled.selected .n { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--day) 80%, var(--ink)); }
 .cell.filled.today .n { background: var(--accent); color: var(--on-accent); }
 .cell.filled.out { background: color-mix(in srgb, var(--day) 8%, var(--surface)); }
 @media (hover: hover) { .cell.filled:not(.selected):hover { background: color-mix(in srgb, var(--day) 23%, var(--surface)); } }
+.cell.filled .ind-note { background: color-mix(in srgb, var(--day) 22%, var(--surface)); }
+.cell.filled .ind-ph img { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--day) 17%, var(--surface)); }
 
 .day.filled { background: linear-gradient(to bottom, color-mix(in srgb, var(--day) 15%, var(--surface)), var(--surface) 190px); }
 .day.filled .dow { color: color-mix(in srgb, var(--day) 85%, var(--ink)); }
@@ -761,13 +772,11 @@ html.viewer-open { overflow: hidden; }
 @media (max-width: 760px) {
   .cell.filled, .cell.filled.selected, .cell.filled.out { background: transparent; }
   .cell.filled::before {
-    content: ""; position: absolute; inset: 2px; border-radius: 11px; z-index: -1;
+    content: ""; position: absolute; inset: 2px; border-radius: 12px; z-index: -2;
     background: color-mix(in srgb, var(--day) 20%, var(--surface));
   }
   .cell.filled.out::before { background: color-mix(in srgb, var(--day) 9%, var(--surface)); }
   .cell.filled.selected::before { background: color-mix(in srgb, var(--day) 32%, var(--surface)); }
-  .cell { isolation: isolate; }
-  .cell.filled .dots i { box-shadow: 0 0 0 1px color-mix(in srgb, var(--day) 20%, var(--surface)); }
 }
 
 /* ---------- motion ---------- */
@@ -803,16 +812,30 @@ html.viewer-open { overflow: hidden; }
   .month { min-height: 0; padding: 6px 4px 8px; border-radius: 20px; }
   .weekdays { padding: 6px 0 4px; }
   .weekdays span { padding: 0; text-align: center; font-size: 10.5px; }
-  .grid { grid-template-rows: repeat(var(--rows, 6), 50px); gap: 0; }
-  .cell { align-items: center; padding: 5px 0 0; gap: 4px; border-radius: 12px; }
-  .cell .head { justify-content: center; min-height: 0; }
-  .cell .n { margin: 0; width: 32px; height: 32px; font-size: 16px; }
+  .grid { grid-template-rows: repeat(var(--rows, 6), 54px); gap: 0; }
+  /* number + one fixed-height indicator row, centred as a unit: the number sits in the same spot in every cell */
+  .cell { align-items: center; justify-content: center; padding: 0; gap: 3px; border-radius: 12px; }
+  .cell .n { width: 32px; height: 32px; font-size: 16px; }
   .cell.selected { background: transparent; }
-  .cell .note-mark, .chips, .more { display: none; }
-  .dots { display: flex; gap: 3px; height: 5px; }
-  .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--c); }
-  .dots i.note { background: transparent; box-shadow: inset 0 0 0 1.3px var(--ink-3); }
-  .cell.out .dots { opacity: .4; }
+  .cell .chips { display: none; }
+  .ind { min-height: 0; height: 6px; gap: 3px; }
+  .ind-ev { display: inline-flex; }
+  .ind-note { width: 7px; height: 2.5px; border-radius: 2px; background: var(--ink-3); opacity: .7; }
+  .ind-note svg, .ind-ph { display: none; }
+
+  /* photo days: the photo becomes the tile */
+  .cell .cover { display: block; position: absolute; inset: 2px; border-radius: 12px; overflow: hidden; z-index: -1; background: var(--sunken); }
+  .cell .cover img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s; }
+  .cell .cover img.in { opacity: 1; }
+  .cell .cover::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, rgba(0,0,0,.42), rgba(0,0,0,.22) 70%), linear-gradient(rgba(0,0,0,0) 55%, rgba(0,0,0,.35)); }
+  .cell.filled .cover::after { box-shadow: inset 0 0 0 2px var(--day); }
+  .cell.has-photo .n, .cell.has-photo.we .n, .cell.filled.has-photo .n { color: #fff; font-weight: 650; text-shadow: 0 1px 3px rgba(0,0,0,.55); }
+  .cell.has-photo.selected .n { box-shadow: inset 0 0 0 1.5px #fff; }
+  .cell.has-photo.today .n { text-shadow: none; }
+  .cell.has-photo .ind-ev .dot { box-shadow: 0 0 0 1.2px rgba(255,255,255,.85); }
+  .cell.has-photo .ind-note { background: #fff; opacity: .9; }
+  .cell.out.has-photo .cover { opacity: .45; }
+  .cell.out .ind { opacity: .4; }
 
   .day { position: static; padding: 20px 18px 18px; border-radius: 20px; gap: 20px; }
   .add-btn { display: none; }
