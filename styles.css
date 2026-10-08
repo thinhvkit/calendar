@@ -781,6 +781,58 @@ html.viewer-open { overflow: hidden; }
 
 
 
+
+/* ============================================================
+   Lunar calendar
+   ============================================================ */
+.cell .lu {
+  position: absolute; top: 9px; right: 8px;
+  font-size: 10.5px; line-height: 1; font-weight: 520; font-variant-numeric: tabular-nums;
+  color: var(--ink-3); opacity: .8; pointer-events: none;
+}
+.cell .lu.l1 { color: var(--accent); opacity: 1; font-weight: 650; }
+.cell .lu i { font-style: normal; font-size: 8.5px; margin-left: 1px; vertical-align: 1px; }
+.cell.out .lu { opacity: .35; }
+.cell.off .n { color: var(--accent); }
+.cell.today.off .n, .cell.filled.off .n { color: inherit; }
+.cell.today.off .n { color: var(--on-accent); }
+.chip.hol-chip { color: var(--accent); font-weight: 600; font-size: 11.5px; padding-left: 6px; }
+.chip.hol-chip::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: currentColor; flex: none; margin-right: 1px; opacity: .8; }
+.chip.hol-chip:not(.off) { color: var(--ink-2); }
+.chip.hol-chip:not(.off)::before { background: var(--accent); }
+.lunar-line {
+  margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.lunar-line[hidden] { display: none; }
+.lunar-line .lu-k { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+.hol-pill { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--sunken); color: var(--ink-2); }
+.hol-pill.off { background: var(--accent-soft); color: var(--accent); }
+
+/* ============================================================
+   Quick add hint
+   ============================================================ */
+.qa-hint {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: -6px 0 2px; padding: 9px 10px; border-radius: 12px;
+  background: var(--accent-soft); color: var(--ink-2); font-size: 13px;
+  animation: pop .22s var(--ease);
+}
+.qa-hint[hidden] { display: none; }
+.qa-spark { color: var(--accent); font-size: 12px; }
+.qa-title { font-weight: 600; color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-pill { padding: 2px 8px; border-radius: 999px; background: var(--surface); color: var(--accent); font-weight: 600; font-size: 12px; font-variant-numeric: tabular-nums; }
+.qa-undo { margin-left: auto; appearance: none; border: 0; background: none; padding: 2px 4px; color: var(--ink-3); font: inherit; font-size: 12px; font-weight: 560; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+@media (hover: hover) { .qa-undo:hover { color: var(--ink); } }
+
+/* month slide */
+.grid { will-change: transform; touch-action: pan-y; }
+@media (max-width: 760px) {
+  .cell .lu { position: static; font-size: 9.5px; line-height: 11px; margin-top: -2px; opacity: .7; }
+  .cell .lu.l1 { font-size: 9px; }
+  .cell { gap: 1px; }
+}
+
 /* ---------- motion ---------- */
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
@@ -814,17 +866,17 @@ html.viewer-open { overflow: hidden; }
   .month { min-height: 0; padding: 6px 4px 8px; border-radius: 20px; }
   .weekdays { padding: 6px 0 4px; }
   .weekdays span { padding: 0; text-align: center; font-size: 10.5px; }
-  .grid { grid-template-rows: repeat(var(--rows, 6), 54px); gap: 0; }
+  .grid { grid-template-rows: repeat(var(--rows, 6), 60px); gap: 0; }
   /* number + one fixed-height indicator row, centred as a unit: the number sits in the same spot in every cell */
   .cell { align-items: center; justify-content: center; padding: 0; gap: 3px; border-radius: 12px; }
   .cell .n { width: 32px; height: 32px; font-size: 16px; }
   .cell.selected { background: transparent; }
   .cell .chips { display: none; }
-  .ind { min-height: 0; height: 14px; gap: 4px; }
+  .ind { min-height: 0; height: 9px; gap: 4px; }
   .ind-ev { display: inline-flex; }
   .ind-note { width: 7px; height: 2.5px; border-radius: 2px; background: var(--ink-3); opacity: .7; }
   .ind-note svg, .ind-ph b { display: none; }
-  .ind-ph svg { width: 12px; height: 12px; stroke-width: 2.2; }
+  .ind-ph svg { width: 11px; height: 11px; stroke-width: 2.3; }
 
   /* photo days: the photo becomes the tile */
   .grid { gap: 2px; }

@@ -165,6 +165,21 @@ function fmtTime(t, short) {
   if (short) return m ? `${hh}:${String(m).padStart(2, '0')}${ap[0]}` : `${hh}${ap[0]}`;
   return `${hh}:${String(m).padStart(2, '0')} ${ap.toUpperCase()}`;
 }
+/* ---------------- display preferences ---------------- */
+const PREFS_KEY = 'calendar-prefs';
+const prefs = (() => {
+  const lang = (navigator.languages || [navigator.language || '']).join(',');
+  const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+  const vn = /\bvi\b|vi-/i.test(lang) || /Ho_Chi_Minh|Saigon|Hanoi/.test(tz);
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch {}
+  return Object.assign({ lunar: vn }, saved);
+})();
+const savePrefs = () => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch {} };
+const hasLunar = () => prefs.lunar && typeof Lunar !== 'undefined';
+function lunarOf(d) { return Lunar.fromSolar(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+function holidayOf(d) { return Lunar.holiday(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+
 function relDay(k) {
   const diff = Math.round((parseKey(k) - parseKey(keyOf(new Date()))) / 864e5);
   if (diff === 0) return 'Today';
@@ -265,9 +280,19 @@ function renderMonth() {
     if (k === selected) cls.push('selected');
     const main = mainOf(evs);
     if (main) cls.push('filled');
+    let lu = '', hol = null, luLabel = '';
+    if (hasLunar()) {
+      const L = lunarOf(d); hol = holidayOf(d);
+      const first = L.day === 1;
+      lu = `<span class="lu${first ? ' l1' : ''}${hol ? ' lh' : ''}" aria-hidden="true">${first ? `${L.day}/${L.month}${L.leap ? '<i>n</i>' : ''}` : L.day}</span>`;
+      luLabel = `, lunar ${L.day}/${L.month}${L.leap ? ' leap' : ''}${hol ? `, ${hol.name}` : ''}`;
+      if (hol) cls.push('hol'); if (hol && hol.off) cls.push('off');
+    }
 
-    const shown = evs.length > maxChips + 1 ? evs.slice(0, maxChips) : evs.slice(0, maxChips + 1);
-    const chips = shown.map(e => e.time
+    const room = maxChips + 1 - (hol ? 1 : 0);
+    const shown = evs.length > room ? evs.slice(0, room - 1) : evs.slice(0, room);
+    const holChip = hol ? `<span class="chip hol-chip${hol.off ? ' off' : ''}" title="${esc(hol.en)}"><span class="x">${esc(hol.name)}</span></span>` : '';
+    const chips = holChip + shown.map(e => e.time
       ? `<span class="chip timed${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="t">${esc(fmtTime(e.time, true))}</span><span class="x">${esc(e.title)}</span></span>`
       : `<span class="chip allday${e.important ? ' imp' : ''}" style="--c:${colorOf(e.color)}"><span class="x">${esc(e.title)}</span></span>`).join('');
     const more = evs.length > shown.length ? `<span class="more">+${evs.length - shown.length} more</span>` : '';
@@ -276,8 +301,8 @@ function renderMonth() {
     const label = `${fmt.full.format(d)}${evs.length ? `, ${evs.length} event${evs.length > 1 ? 's' : ''}` : ''}${info.note ? ', has note' : ''}${nPhotos ? `, ${nPhotos} photo${nPhotos > 1 ? 's' : ''}` : ''}`;
     const ind = `<span class="ind" aria-hidden="true"><span class="ind-ev">${evDots}</span>${info.note ? '<span class="ind-note"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></svg></span>' : ''}${nPhotos ? `<span class="ind-ph"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15.5l-4.8-4.8a1.5 1.5 0 0 0-2.1 0L5 19"/></svg>${nPhotos > 1 ? `<b>${nPhotos}</b>` : ''}</span>` : ''}</span>`;
 
-    html += `<button class="${cls.join(' ')}"${main ? ` style="--day:${colorOf(main.color)}"` : ''} data-k="${k}" aria-label="${esc(main ? `${label}, main event ${main.title}` : label)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
-      <span class="n">${d.getDate()}</span>
+    html += `<button class="${cls.join(' ')}"${main ? ` style="--day:${colorOf(main.color)}"` : ''} data-k="${k}" aria-label="${esc((main ? `${label}, main event ${main.title}` : label) + luLabel)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
+      <span class="n">${d.getDate()}</span>${lu}
       <span class="chips">${chips}${more}</span>
       ${ind}
     </button>`;
@@ -292,6 +317,12 @@ function renderDay() {
   $('dDow').textContent = fmt.dow.format(d);
   $('dRel').textContent = relDay(selected);
   $('dDate').textContent = d.getFullYear() === new Date().getFullYear() ? fmt.date.format(d) : fmt.dateYear.format(d);
+  const lunarEl = $('dLunar');
+  if (hasLunar()) {
+    const L = lunarOf(d), hol = holidayOf(d);
+    lunarEl.innerHTML = `<span class="lu-k">Âm lịch</span><span>${L.day} tháng ${L.month}${L.leap ? ' nhuận' : ''} · ${esc(L.yearName)}</span>${hol ? `<span class="hol-pill${hol.off ? ' off' : ''}" title="${esc(hol.en)}">${esc(hol.name)}</span>` : ''}`;
+    lunarEl.hidden = false;
+  } else lunarEl.hidden = true;
 
   const occ = occByDay(selected, selected)[selected] || [];
   const main = mainOf(occ.map(o => o.ev));
@@ -329,12 +360,80 @@ function select(k, { focus = false } = {}) {
   renderMonth(); renderDay();
   if (focus) { const el = $('grid').querySelector(`[data-k="${k}"]`); el && el.focus({ preventScroll: true }); }
 }
+/* Slide the month grid out and the new month in. `from` = current drag offset in px. */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let sliding = null, pendingChange = null;
+function slideMonth(dir, change, from = 0) {
+  const g = $('grid');
+  // finish any slide in progress first so rapid taps never lose a month
+  if (pendingChange) { const c = pendingChange; pendingChange = null; c(); }
+  if (sliding) { sliding.cancel(); sliding = null; }
+  if (reduceMotion.matches || !g.animate) { g.style.transform = ''; g.style.opacity = ''; change(); return; }
+  const w = g.offsetWidth || 320, out = -dir * w * 0.42;
+  g.style.transform = ''; g.style.opacity = '';
+  const a = g.animate([{ transform: `translateX(${from}px)`, opacity: Math.max(.35, 1 - Math.abs(from) / w) }, { transform: `translateX(${out}px)`, opacity: 0 }],
+    { duration: from ? 150 : 130, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+  sliding = a; pendingChange = change;
+  a.onfinish = () => {
+    if (pendingChange === change) { pendingChange = null; change(); }
+    a.cancel();
+    sliding = g.animate([{ transform: `translateX(${-out * 0.8}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+      { duration: 280, easing: 'cubic-bezier(.16,1,.3,1)' });
+    sliding.onfinish = () => { sliding = null; };
+  };
+}
 function shiftMonth(n) {
   const d = parseKey(selected);
   const target = new Date(d.getFullYear(), d.getMonth() + n, 1);
   const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
   target.setDate(Math.min(d.getDate(), last));
   select(keyOf(target));
+}
+
+/* ---------------- quick add (natural-language title) ---------------- */
+// While creating a new event, typing "Lunch with Mai tomorrow 12:30" fills in date/time/repeat.
+// Fields the user changes by hand are never overridden.
+const qa = { on: false, off: false, touched: new Set(), res: null, defaults: null };
+function qaStart(isNew) {
+  qa.on = isNew && typeof QuickAdd !== 'undefined'; qa.off = false; qa.touched.clear(); qa.res = null;
+  qa.defaults = { date: $('evDate').value, time: '', allDay: false, important: false, rep: '' };
+  $('evTitle').placeholder = qa.on ? (isPhone() ? 'Try “Lunch tomorrow 12:30”' : 'Title — or try “Lunch with Mai tomorrow 12:30”') : 'Event title';
+  $('qaHint').hidden = true; $('qaHint').innerHTML = '';
+}
+function qaRun() {
+  if (!qa.on || qa.off) return;
+  const r = QuickAdd.parse($('evTitle').value, new Date());
+  const got = r.date || r.time || r.repeat || r.important;
+  qa.res = got && r.title ? r : null;
+  const R = qa.res || {}, D = qa.defaults;
+  const set = (field, fn) => { if (!qa.touched.has(field)) fn(); };
+  set('date', () => { $('evDate').value = R.date || D.date; });
+  set('time', () => {
+    const allDayWord = /\b(all ?day|c[aả] ng[aà]y)\b/i.test($('evTitle').value) && qa.res;
+    $('evTime').value = R.time || D.time;
+    $('evAllDay').checked = allDayWord ? true : D.allDay; syncAllDay();
+  });
+  set('important', () => { $('evImportant').checked = R.important || D.important; });
+  set('repeat', () => setRepeat(R.repeat || D.rep));
+  syncRepeatSummary();
+  const hint = $('qaHint');
+  if (!qa.res) { hint.hidden = true; return; }
+  const pills = [];
+  if (R.date) { const k = R.date, dd = parseKey(k); pills.push(relDay(k) || `${fmt.dowShort.format(dd)}, ${fmt.date.format(dd)}`); }
+  if (R.time) pills.push(fmtTime(R.time)); else if ($('evAllDay').checked) pills.push('All day');
+  if (R.repeat) pills.push(repeatText(R.repeat, R.date || $('evDate').value, '').replace(/ \(.*\)$/, ''));
+  if (R.important) pills.push('Important');
+  hint.innerHTML = `<span class="qa-spark" aria-hidden="true">✦</span><span class="qa-title">“${esc(R.title)}”</span>${pills.map(x => `<span class="qa-pill">${esc(x)}</span>`).join('')}<button type="button" class="qa-undo" id="qaUndo">Keep as typed</button>`;
+  hint.hidden = false;
+}
+function qaKeepTyped() {
+  qa.off = true; qa.res = null;
+  const D = qa.defaults;
+  if (!qa.touched.has('date')) $('evDate').value = D.date;
+  if (!qa.touched.has('time')) { $('evTime').value = ''; $('evAllDay').checked = false; syncAllDay(); }
+  if (!qa.touched.has('important')) $('evImportant').checked = false;
+  if (!qa.touched.has('repeat')) setRepeat('');
+  $('qaHint').hidden = true; $('evTitle').focus();
 }
 
 /* ---------------- event editor ---------------- */
@@ -372,6 +471,7 @@ function openEditor(id = null, origin = null) {
   setRepeat(ev && ev.repeat ? ev.repeat.freq : '');
   $('mainRow').style.setProperty('--day', colorOf(radio ? radio.value : COLORS[0].id));
   syncAllDay();
+  qaStart(!ev);
   $('eventSheet').showModal();
   if (!isPhone() || !ev) setTimeout(() => $('evTitle').focus(), 60);
 }
@@ -401,7 +501,8 @@ function removeFromDay(k, id) {
 
 async function saveEditor(e) {
   e.preventDefault();
-  const title = $('evTitle').value.trim();
+  if (qa.on && !qa.off) qaRun();
+  const title = (qa.on && qa.res ? qa.res.title : $('evTitle').value).trim();
   if (!title) { $('evTitle').focus(); return; }
   const date = $('evDate').value || selected;
   const until = repFreq && $('evUntil').value ? $('evUntil').value : '';
@@ -984,6 +1085,13 @@ async function renderDataSheet() {
     </section>
     ${fileSection}
     <section class="ds">
+      <div class="ds-head"><h3>Display</h3></div>
+      <label class="switch-row">
+        <span>Lunar calendar<small>Âm lịch dates and Vietnamese holidays</small></span>
+        <input type="checkbox" class="switch" id="prefLunar" ${prefs.lunar ? 'checked' : ''}>
+      </label>
+    </section>
+    <section class="ds">
       <div class="ds-head"><h3>Erase</h3></div>
       <p>Remove all events, notes and photos from this device.</p>
       <div class="ds-actions"><button class="btn danger-ghost" data-act="erase" ${!has ? 'disabled' : ''}>Erase all data…</button></div>
@@ -1056,29 +1164,60 @@ function wire() {
   $('swatches').innerHTML = COLORS.map(c =>
     `<label class="swatch" title="${c.name}"><input type="radio" name="color" value="${c.id}" aria-label="${c.name}"><span style="--c:${c.v}"></span></label>`).join('');
 
-  $('prevBtn').onclick = () => shiftMonth(-1);
-  $('nextBtn').onclick = () => shiftMonth(1);
+  $('prevBtn').onclick = () => slideMonth(-1, () => shiftMonth(-1));
+  $('nextBtn').onclick = () => slideMonth(1, () => shiftMonth(1));
   $('todayBtn').onclick = () => select(keyOf(new Date()));
   $('addBtn').onclick = () => openEditor();
   $('fab').onclick = () => openEditor();
   $('dataBtn').onclick = async () => { await renderDataSheet(); $('dataSheet').showModal(); };
 
+  let swallowClick = 0;
   $('grid').addEventListener('click', e => {
+    if (Date.now() < swallowClick) { e.preventDefault(); e.stopPropagation(); return; }
     const c = e.target.closest('.cell'); if (!c) return;
     if (c.dataset.k === selected && !isPhone()) { openEditor(); return; }   // click selected day again = new event
     select(c.dataset.k);
   });
   $('grid').addEventListener('dblclick', e => { const c = e.target.closest('.cell'); if (c) { select(c.dataset.k); openEditor(); } });
 
-  // swipe left/right on the month grid (phones)
-  let sx = null, sy = 0;
-  $('grid').addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-  $('grid').addEventListener('touchend', e => {
+  // swipe left/right on the month grid: the grid follows the finger, then slides to the next month
+  const grid = $('grid');
+  let sx = null, sy = 0, st = 0, mode = null, dx = 0;
+  const changeView = dir => () => { view = startOfMonth(new Date(view.getFullYear(), view.getMonth() + dir, 1)); renderMonth(); };
+  grid.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { sx = null; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = performance.now(); mode = null; dx = 0;
+  }, { passive: true });
+  grid.addEventListener('touchmove', e => {
     if (sx == null) return;
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    const x = e.touches[0].clientX - sx, y = e.touches[0].clientY - sy;
+    if (!mode) { if (Math.abs(x) < 8 && Math.abs(y) < 8) return; mode = Math.abs(x) > Math.abs(y) * 1.2 ? 'h' : 'v'; }
+    if (mode !== 'h') return;
+    if (e.cancelable) e.preventDefault();
+    if (sliding) { sliding.finish && sliding.finish(); }
+    dx = x;
+    const w = grid.offsetWidth || 320;
+    grid.style.transform = `translateX(${dx}px)`;
+    grid.style.opacity = String(Math.max(.4, 1 - Math.abs(dx) / (w * 1.4)));
+  }, { passive: false });
+  const endSwipe = () => {
+    if (sx == null) return;
     sx = null;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { view = startOfMonth(new Date(view.getFullYear(), view.getMonth() + (dx < 0 ? 1 : -1), 1)); renderMonth(); }
-  });
+    if (mode !== 'h') return;
+    swallowClick = Date.now() + 400;
+    const w = grid.offsetWidth || 320, v = dx / Math.max(1, performance.now() - st);
+    if (Math.abs(dx) > w * 0.2 || (Math.abs(v) > 0.45 && Math.abs(dx) > 24)) {
+      const dir = dx < 0 ? 1 : -1;
+      slideMonth(dir, changeView(dir), dx);
+      if (navigator.vibrate) try { navigator.vibrate(6); } catch {}
+    } else {
+      const from = dx;
+      grid.style.transform = ''; grid.style.opacity = '';
+      if (grid.animate && !reduceMotion.matches) grid.animate([{ transform: `translateX(${from}px)` }, { transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.16,1,.3,1)' });
+    }
+  };
+  grid.addEventListener('touchend', endSwipe);
+  grid.addEventListener('touchcancel', endSwipe);
 
   $('events').addEventListener('click', e => {
     if (e.target.closest('[data-add]')) { openEditor(); return; }
@@ -1088,13 +1227,18 @@ function wire() {
   $('note').addEventListener('input', onNoteInput);
   $('note').addEventListener('blur', flushNote);
 
-  $('evAllDay').addEventListener('change', syncAllDay);
+  $('evAllDay').addEventListener('change', () => { qa.touched.add('time'); syncAllDay(); });
+  let qaT; $('evTitle').addEventListener('input', () => { clearTimeout(qaT); qaT = setTimeout(qaRun, 120); });
+  $('evDate').addEventListener('input', () => qa.touched.add('date'));
+  $('evTime').addEventListener('input', () => qa.touched.add('time'));
+  $('evImportant').addEventListener('change', () => qa.touched.add('important'));
+  $('qaHint').addEventListener('click', e => { if (e.target.closest('#qaUndo')) qaKeepTyped(); });
   $('eventForm').addEventListener('submit', saveEditor);
   $('evDelete').onclick = () => { const ed = editing; $('eventSheet').close(); if (ed) deleteEvent(ed.key, ed.origin, ed.id); };
   const syncMainSwatch = () => { const c = ($('eventForm').querySelector('input[name="color"]:checked') || {}).value; $('mainRow').style.setProperty('--day', colorOf(c)); };
   $('swatches').addEventListener('change', syncMainSwatch);
   $('eventSheet').addEventListener('toggle', syncMainSwatch);
-  $('repeatCtl').addEventListener('click', e => { const b = e.target.closest('[data-rep]'); if (b) setRepeat(b.dataset.rep); });
+  $('repeatCtl').addEventListener('click', e => { const b = e.target.closest('[data-rep]'); if (b) { qa.touched.add('repeat'); setRepeat(b.dataset.rep); } });
   $('evDate').addEventListener('change', syncRepeatSummary);
   $('evUntil').addEventListener('change', syncRepeatSummary);
   $('clearUntil').onclick = () => { $('evUntil').value = ''; syncRepeatSummary(); };
@@ -1112,6 +1256,9 @@ function wire() {
       erase: eraseAll,
     })[b.dataset.act]();
   });
+  $('dataBody').addEventListener('change', e => {
+    if (e.target.id === 'prefLunar') { prefs.lunar = e.target.checked; savePrefs(); renderMonth(); renderDay(); }
+  });
   $('restoreInput').addEventListener('change', async e => {
     const f = e.target.files[0]; e.target.value = '';
     if (f) restoreFrom(await f.text(), f.name);
@@ -1128,8 +1275,8 @@ function wire() {
     const inGrid = document.activeElement && document.activeElement.classList.contains('cell');
     const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
     if (e.key in moves) { e.preventDefault(); select(addDays(selected, moves[e.key]), { focus: true }); }
-    else if (e.key === 'PageUp') { e.preventDefault(); shiftMonth(-1); }
-    else if (e.key === 'PageDown') { e.preventDefault(); shiftMonth(1); }
+    else if (e.key === 'PageUp') { e.preventDefault(); slideMonth(-1, () => shiftMonth(-1)); }
+    else if (e.key === 'PageDown') { e.preventDefault(); slideMonth(1, () => shiftMonth(1)); }
     else if (e.key === 't' || e.key === 'T') select(keyOf(new Date()), { focus: inGrid });
     else if (e.key === 'n' || e.key === 'N' || (e.key === 'Enter' && inGrid)) { e.preventDefault(); openEditor(); }
   });

@@ -20,6 +20,14 @@ In the event editor, pick **Never / Daily / Weekly / Monthly / Yearly**, and opt
 - Monthly on the 29th–31st skips months that don't have that day. A yearly event on Feb 29 only appears in leap years.
 - When you edit or delete one occurrence, the app asks whether to change **This event only**, **This and following events**, or **All events in the series**.
 
+## Quick add
+When you create an event, type it the way you'd say it, for example "Lunch with Mai tomorrow 12:30", "Gym every monday 6:30pm !" or "Họp nhóm thứ 2 9h30". The app fills in the date, time, repeat and Important flag, and shows what it understood. Tap **Keep as typed** to turn this off for that event. Anything you set by hand is never overwritten.
+
+## Lunar calendar (âm lịch)
+Each day shows its lunar date. The first day of each lunar month shows as "1/9", and leap months are marked with "n". Vietnamese holidays (Tết, Giỗ Tổ, Trung Thu, Quốc khánh…) appear in the month view, and the day panel shows the full lunar date and year name (e.g. *Bính Ngọ*).
+- Dates are calculated for Vietnam time (UTC+7).
+- It's on by default for Vietnamese devices. Turn it on or off in **Data & settings → Display**.
+
 ## Photos
 Each day has a **Photos** section with **Take photo** (opens the camera) and **From library**. On desktop you can also drag photos onto the day panel.
 - Photos are copied into the app's private storage on your device, so they stay in the app even if you delete them from your phone's photo library.
