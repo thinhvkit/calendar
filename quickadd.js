@@ -28,6 +28,10 @@
     // ---- importance
     let m = find(/(^|\s)(!+|!important|quan trong|gap)(?=\s|$)/g);
     if (m) { important = true; take(m, m.index + m[1].length, m[0].length - m[1].length); }
+    // spoken: "… mark it as important", "… and it's important", trailing "important"
+    m = find(/[,.]?\s*\b(?:and )?(?:mark(?:ed)?(?: it)?(?: as)? important|it'?s important|(?:danh dau )?(?:la )?quan trong)\b[.!]?\s*$/g)
+      || find(/[,.]?\s+important[.!]?\s*$/g);
+    if (m) { important = true; take(m); }
 
     // ---- repeat
     const REP = [
@@ -58,13 +62,15 @@
       if (h > 23 || min > 59) return false;
       time = `${pad(h)}:${pad(min)}`; used.push([idx, idx + len]); return true;
     };
-    m = find(/\b(noon|midday|trua nay)\b/g); if (m && !time) { time = '12:00'; take(m); }
+    m = find(/\b(?:at )?(\d{1,2})(?:[:.](\d{2}))?(?: o'?clock)? (in the morning|in the afternoon|in the evening|at night|tonight)\b/g);
+    if (m) setTime(m[1], m[2], /morning/.test(m[3]) ? 'am' : 'pm', m.index, m[0].length);
+    m = !time && find(/\b(noon|midday|trua nay)\b/g); if (m) { time = '12:00'; take(m); }
     m = !time && find(/\bmidnight\b/g); if (m) { time = '00:00'; take(m); }
-    if (!time) { m = find(/\b(?:at |luc )?(\d{1,2})[:.](\d{2}) ?(am|pm|a\.m\.|p\.m\.|sang|chieu|toi)?\b/g); if (m) setTime(m[1], m[2], m[3], m.index, m[0].length); }
+    if (!time) { m = find(/\b(?:at |luc )?(\d{1,2})[:.](\d{2})(?: ?(am|pm|a\.m\.?|p\.m\.?|sang|chieu|toi))?(?![a-z0-9])/g); if (m) setTime(m[1], m[2], m[3], m.index, m[0].length); }
     if (!time) { m = find(/\b(?:at |luc )?(\d{1,2})h(\d{2})?\b ?(sang|chieu|toi|trua)?/g); if (m) setTime(m[1], m[2], m[3], m.index, m[0].length); }
-    if (!time) { m = find(/\b(?:at |luc )?(\d{1,2}) ?(am|pm|a\.m\.|p\.m\.)(?=\s|$|[,.;])/g); if (m) setTime(m[1], 0, m[2], m.index, m[0].length); }
+    if (!time) { m = find(/\b(?:at |luc )?(\d{1,2})(?: o'?clock)? ?(am|pm|a\.m\.?|p\.m\.?)(?=\s|$|[,;.!?])/g); if (m) setTime(m[1], 0, m[2], m.index, m[0].length); }
     if (!time) { m = find(/\b(?:luc )?(\d{1,2}) gio(?: (\d{1,2}))? ?(sang|chieu|toi|trua)?\b/g); if (m) setTime(m[1], m[2], m[3], m.index, m[0].length); }
-    if (!time) { m = find(/\bat (\d{1,2})\b(?![\/\-.:]\d)/g); if (m) { const h = +m[1]; setTime(h < 8 ? h + 12 : h, 0, '', m.index, m[0].length); } }
+    if (!time) { m = find(/\bat (\d{1,2})(?: o'?clock)?\b(?![\/\-.:]\d)/g); if (m) { const h = +m[1]; setTime(h < 8 ? h + 12 : h, 0, '', m.index, m[0].length); } }
     // part-of-day words → default times (only if no explicit time)
     if (!time) {
       const POD = [[/\b(tonight|this evening|toi nay)\b/g, '19:00', 0], [/\b(this morning|sang nay)\b/g, '09:00', 0], [/\b(this afternoon|chieu nay)\b/g, '15:00', 0],
@@ -101,6 +107,10 @@
         const mo = MON[monFirst ? m[1] : m[2]], d = +(monFirst ? m[2] : m[1]);
         date = resolveDMY(base, d, mo, m[3]); if (date) take(m);
       }
+    }
+    if (!date) { // spoken Vietnamese: "ngày 20 tháng 10 (năm 2027)"
+      m = find(/\b(?:ngay )?(\d{1,2}) thang (\d{1,2})(?: nam (\d{4}))?\b/g);
+      if (m) { date = resolveDMY(base, +m[1], +m[2], m[3]); if (date) take(m); }
     }
     if (!date) { // 12/10, 12/10/2026, 12-10 (day/month — Vietnamese order); "ngay 12/10", "ngay 12"
       m = find(/\b(?:ngay )?(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/g);

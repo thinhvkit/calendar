@@ -23,6 +23,15 @@ In the event editor, pick **Never / Daily / Weekly / Monthly / Yearly**, and opt
 ## Quick add
 When you create an event, type it the way you'd say it, for example "Lunch with Mai tomorrow 12:30", "Gym every monday 6:30pm !" or "Họp nhóm thứ 2 9h30". The app fills in the date, time, repeat and Important flag, and shows what it understood. Tap **Keep as typed** to turn this off for that event. Anything you set by hand is never overwritten.
 
+## Voice
+Tap the 🎤 (next to + on the phone, in the top bar on desktop, or press **V**) and speak in English or Vietnamese.
+- **Ask:** "What's on tomorrow?", "Am I free this weekend?", "Ngày mai có gì?". You get the exact answer from your calendar, read aloud in English. You can turn reading aloud off in Assistant settings.
+- **Add:** "Add lunch with Mai tomorrow at 12:30", "Thêm họp nhóm thứ hai lúc 9 giờ". A card shows what was understood with **Add**, **Edit…** and **Cancel**. Nothing is saved until you tap Add, and Undo is there right after.
+- The editor's title field has a 🎤 too: say the whole event and the fields fill in.
+- Typing works the same way in Ask: "add dentist friday at 3".
+
+Speech-to-text uses the browser's own service (Apple on iPhone/Safari, Google in Chrome). Only the recognized text is used, and your calendar never leaves the device. Where voice isn't available, the app points you to the keyboard's dictation key.
+
 ## Lunar calendar (âm lịch)
 Each day shows its lunar date. The first day of each lunar month shows as "1/9", and leap months are marked with "n". Vietnamese holidays (Tết, Giỗ Tổ, Trung Thu, Quốc khánh…) appear in the month view, and the day panel shows the full lunar date and year name (e.g. *Bính Ngọ*).
 - Dates are calculated for Vietnam time (UTC+7).

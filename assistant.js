@@ -206,6 +206,56 @@ function keywords(s) {
   return [...new Set(s.split(/[^a-z0-9]+/).filter(w => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w)))];
 }
 
+/* ---------- "add …" requests (typed or spoken) ---------- */
+// Leading verbs that mean "create an event". Matched on the accent-stripped text; the same
+// number of characters is cut from the original so Vietnamese accents survive in the title.
+const ADD_RE = /^\s*(?:(?:hey|ok|okay|please|can you|could you|would you|i want to|i need to|let'?s)\s+)*(?:add|create|schedule|set up|new event|remind me(?: to)?|them|tao|dat lich|len lich|nhac (?:toi|minh|em|anh)(?: la)?)\s+(?:(?:an?|the|my|one|mot|1)\s+)?(?:(?:event|appointment|reminder|meeting called|event called|su kien|lich hen|lich|cuoc hen)\s+)?(?:(?:called|named|for|ten la|la)\s+)?/i;
+const ADD_TAIL = /\s*(?:to|in|on|into) (?:my |the )?calendar\.?\s*$|\s*(?:vao|len) (?:lich|lich cua (?:toi|minh))\.?\s*$|\s*(?:please|giup (?:toi|minh)|nhe|nha)\.?\s*$/i;
+function addIntent(q) {
+  q = q.normalize('NFC');
+  const s = norm(q);
+  if (s.length !== q.length) return null;
+  const m = s.match(ADD_RE);
+  if (!m || !m[0].trim()) return implicitAdd(q, s);
+  let rest = q.slice(m[0].length);
+  const tail = norm(rest).match(ADD_TAIL);
+  if (tail) rest = rest.slice(0, rest.length - tail[0].length);
+  rest = rest.trim().replace(/[.!?]+$/, '');
+  if (!rest || typeof QuickAdd === 'undefined') return null;
+  // "add … " must name something; "add" alone or a pure question isn't a request
+  if (/^(what|when|where|who|why|how|is|are|do|does)\b/i.test(norm(rest))) return null;
+  const r = QuickAdd.parse(rest, new Date());
+  if (!r.title) return null;
+  return { title: r.title.slice(0, 200), date: r.date || todayKey(), time: r.time || '', repeat: r.repeat || '', important: !!r.important, guessedDate: !r.date };
+}
+const QUESTION_RE = /\?|^(what|whats|when|where|who|which|how|is|are|am|do|does|did|any|show|list|tell|find|search|check|should|can|could|will|would)\b|\b(gi|nao|khong|bao gio|may gio|ai|dau|xem|liet ke|ranh|ban khong|co lich|co gi|lich trinh|busy|free|busiest)\b/;
+function implicitAdd(q, s) {
+  if (QUESTION_RE.test(s) || typeof QuickAdd === 'undefined') return null;
+  const r = QuickAdd.parse(q, new Date());
+  if (!r.title || !(r.time || r.repeat) || r.title.split(/\s+/).length > 8) return null;
+  return { title: r.title.slice(0, 200), date: r.date || todayKey(), time: r.time || '', repeat: r.repeat || '', important: !!r.important, guessedDate: !r.date, implicit: true };
+}
+function draftPills(d) {
+  const p = [];
+  p.push(d.date === todayKey() ? 'Today' : d.date === addDays(todayKey(), 1) ? 'Tomorrow' : L.dayShort.format(parseKey(d.date)));
+  p.push(d.time ? Cal.fmtTime(d.time) : 'All day');
+  if (d.repeat) p.push(Cal.repeatText(d.repeat, d.date, '').replace(/ \(.*\)$/, ''));
+  return p;
+}
+function draftHTML(m) {
+  const d = m.draft;
+  const pills = draftPills(d).map(x => `<span>${esc(x)}</span>`).join('') + (d.important ? '<span class="acc">Important</span>' : '');
+  if (m.added) return `<div class="draft done"><div class="d-ttl"><i style="--c:${Cal.colorOf(m.added.color)}"></i>${esc(d.title)}</div><div class="d-pills">${pills}</div>
+    <div class="d-act"><span class="d-done">Added ✓</span><button class="btn subtle" data-act="draft-open" data-i="${m.i}">Open day</button><button class="btn subtle" data-act="draft-undo" data-i="${m.i}">Undo</button></div></div>`;
+  if (m.undone) return `<div class="draft done"><div class="d-ttl">${esc(d.title)}</div><p class="muted">Not added.</p></div>`;
+  return `<div class="draft"><p>${d.implicit ? 'Add this to your calendar?' : d.guessedDate ? 'Add this for today?' : 'Add this event?'}</p><div class="d-ttl"><i style="--c:var(--accent)"></i>${esc(d.title)}</div><div class="d-pills">${pills}</div>
+    <div class="d-act"><button class="btn primary" data-act="draft-add" data-i="${m.i}">Add</button><button class="btn subtle" data-act="draft-edit" data-i="${m.i}">Edit…</button><button class="btn subtle" data-act="draft-cancel" data-i="${m.i}">${d.implicit ? 'No, search' : 'Cancel'}</button></div></div>`;
+}
+function draftSpeech(d) {
+  const day = d.date === todayKey() ? 'today' : d.date === addDays(todayKey(), 1) ? 'tomorrow' : L.dayLong.format(parseKey(d.date));
+  return `Add ${d.title}, ${day}${d.time ? ' at ' + Cal.fmtTime(d.time) : ''}${d.repeat ? ', repeating ' + d.repeat : ''}? Tap Add to confirm.`;
+}
+
 /* Build grounded context + an instant rule-based answer. */
 function understand(q) {
   const s = norm(q);
@@ -546,7 +596,7 @@ Rules: mention only events that appear in the schedule below, by their exact nam
 }
 
 /* ---------- ask tab ---------- */
-const SUGGESTIONS = ["What's on this week?", 'When is my next important event?', 'Am I free this weekend?', 'Which day is busiest next week?', 'What did I do last week?'];
+const SUGGESTIONS = ["What's on this week?", 'When is my next important event?', 'Am I free this weekend?', 'Which day is busiest next week?', 'Add lunch with Mai tomorrow at 12:30'];
 function modelCardHTML() {
   const m = MODELS[S.model];
   switch (llm.status) {
@@ -578,7 +628,8 @@ function updateModelCard() {
   if (el) el.outerHTML = modelCardHTML();
 }
 function msgHTML(m, i) {
-  if (m.role === 'user') return `<div class="msg user">${esc(m.text)}</div>`;
+  if (m.role === 'user') return `<div class="msg user">${m.voice ? '<span class="vmark" aria-label="Spoken">🎤 </span>' : ''}${esc(m.text)}</div>`;
+  if (m.draft) { m.i = i; return `<div class="msg bot" data-i="${i}">${draftHTML(m)}</div>`; }
   const src = m.sources && m.sources.length && !m.pending
     ? `<div class="src">${m.sources.map(s => `<button data-open="${s.key}" style="--c:${Cal.colorOf(s.ev.color)}"><i></i>${esc(s.ev.title)} · ${esc(L.md.format(parseKey(s.key)))}</button>`).join('')}</div>` : '';
   return `<div class="msg bot" data-i="${i}">${m.pending && !m.html ? '<div class="typing"><i></i><i></i><i></i></div>' : `<div class="md">${m.html}</div>`}${src}</div>`;
@@ -587,22 +638,43 @@ function askHTML() {
   return `<div class="chat" id="chat">${modelCardHTML()}
     ${chat.length ? chat.map(msgHTML).join('') : `<div class="ask-empty"><p class="ask-lead">Ask anything about your events and notes.</p><div class="sugs">${SUGGESTIONS.map(s => `<button class="sug" data-q="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>`}</div>`;
 }
+function speakHTML(html) {
+  if (!window.Voice || !Voice.speakOn || Voice.lang !== 'en-US') return;
+  const div = document.createElement('div'); div.innerHTML = html;
+  const parts = [];
+  div.querySelectorAll('p').forEach(p => { if (!p.closest('li') && !p.classList.contains('muted')) parts.push(p.textContent.trim()); });
+  const lis = [...div.querySelectorAll('li')].slice(0, 3).map(li => li.textContent.replace(/\s+/g, ' ').replace(/ · /g, ', ').trim());
+  if (lis.length) parts.push(lis.join('. '));
+  const more = div.querySelectorAll('li').length - lis.length;
+  if (more > 0) parts.push(`And ${more} more.`);
+  Voice.speak(parts.join(' ').replace(/[“”]/g, '').replace(/\s*·\s*/g, ', ').replace(/\bAM\b/g, 'a.m.').replace(/\bPM\b/g, 'p.m.').replace(/\.{2,}/g, '.'));
+}
 function refreshMsg(i) {
   const el = $('asstBody').querySelector(`.msg.bot[data-i="${i}"]`);
   if (el) el.outerHTML = msgHTML(chat[i], i);
   const b = $('asstBody'); b.scrollTop = b.scrollHeight;
 }
-async function ask(q) {
+async function ask(q, opts = {}) {
   q = q.trim(); if (!q) return;
   if (tab !== 'ask' || showSettings) { tab = 'ask'; showSettings = false; }
+  const draft = addIntent(q);
+  if (draft) {
+    chat.push({ role: 'user', text: q, voice: !!opts.voice });
+    const m = { role: 'bot', draft, html: '' };
+    chat.push(m); m.i = chat.length - 1;
+    renderAsst();
+    if (opts.voice && Voice.lang === 'en-US') Voice.speak(draftSpeech(draft));
+    return;
+  }
   const u = understand(q);
   const prevTurn = chat.length >= 2 ? chat.slice(-2) : [];
-  chat.push({ role: 'user', text: q });
+  chat.push({ role: 'user', text: q, voice: !!opts.voice });
   const useAI = llm.status === 'ready' && !llm.busy;
   const m = { role: 'bot', html: useAI ? '' : u.html, sources: u.sources, pending: useAI, ai: useAI };
   chat.push(m);
   const idx = chat.length - 1;
   renderAsst();
+  if (opts.voice) speakHTML(u.html);   // read the exact answer right away; the AI line only decorates it
   if (!useAI) return;
   llm.busy = true;
   try {
@@ -641,6 +713,10 @@ function settingsHTML() {
       <div class="field"><span>Alert me before events</span>${segHTML('leadMin', [[15, '15 min'], [30, '30 min'], [60, '1 hour'], [120, '2 hours']], S.leadMin)}</div>
       <label class="switch-row"><span>Important events a day early<small>Heads-up 24 hours before anything marked Important</small></span><input type="checkbox" class="switch" data-toggle="impDayBefore" ${S.impDayBefore ? 'checked' : ''}></label>
       ${S.notify && perm === 'granted' ? '<button class="btn subtle" data-act="test-notif">Send a test notification</button>' : ''}
+    </div>
+    <div class="set-group">
+      <h3 class="label">Voice</h3>
+      <label class="switch-row"><span>Read answers aloud<small>After you ask with the 🎤, the answer is spoken (English). Recognition uses your browser's speech service; your calendar stays on this device.</small></span><input type="checkbox" class="switch" data-toggle="voiceSpeak" ${window.Voice && Voice.speakOn ? 'checked' : ''} ${window.Voice && Voice.canSpeak ? '' : 'disabled'}></label>
     </div>
     <div class="set-group">
       <h3 class="label">Weekly review</h3>
@@ -737,6 +813,45 @@ async function weeklyDigest() {
   if (S.notify && 'Notification' in window && Notification.permission === 'granted') notify(d.title, d.body, 'digest-' + wk, wk);
 }
 
+/* ======================= voice ======================= */
+async function voiceAsk(openSheet) {
+  if (!window.Voice || !Voice.supported) {
+    openAssistant('ask');
+    setTimeout(() => $('asstQ').focus(), 80);
+    Cal.toast('Tap the 🎤 on your keyboard to dictate your question');
+    return;
+  }
+  Voice.stopSpeaking();
+  const said = await Voice.listen({ purpose: 'ask' });
+  if (!said) return;
+  if (openSheet || !$('asstSheet').open) openAssistant('ask');
+  ask(said, { voice: true });
+}
+async function draftAct(kind, i) {
+  const m = chat[i]; if (!m || !m.draft) return;
+  const d = m.draft;
+  if (kind === 'add' && !m.added) {
+    const ref = await Cal.addFromDraft(d);
+    m.added = { ...ref, color: localStorage.getItem('calendar-last-color') || 'persimmon' };
+  } else if (kind === 'undo' && m.added) {
+    await Cal.removeAdded(m.added); m.added = null; m.undone = true;
+  } else if (kind === 'cancel') {
+    m.undone = true;
+    if (d.implicit) {   // they meant a question: answer it instead
+      const q = chat[i - 1] && chat[i - 1].text;
+      chat.splice(i, 1); chat.splice(i - 1, 1);
+      renderAsst();
+      if (q) { const u = understand(q); chat.push({ role: 'user', text: q }); chat.push({ role: 'bot', html: u.html, sources: u.sources }); renderAsst(); }
+      return;
+    }
+  } else if (kind === 'edit') {
+    $('asstSheet').close(); m.undone = true; Cal.openEditorWith(d);
+  } else if (kind === 'open') {
+    $('asstSheet').close(); Cal.select(d.date); return;
+  }
+  refreshMsg(i);
+}
+
 /* ======================= wiring ======================= */
 function wire() {
   Cal.wireSheet($('asstSheet'));
@@ -744,6 +859,8 @@ function wire() {
   $('asstSettingsBtn').onclick = () => { showSettings = !showSettings; renderAsst(); };
   $('asstSheet').querySelectorAll('.tab').forEach(b => b.onclick = () => { tab = b.dataset.tab; showSettings = false; renderAsst(); if (tab === 'ask') llmCheck(); });
   $('asstForm').addEventListener('submit', e => { e.preventDefault(); const q = $('asstQ').value; $('asstQ').value = ''; ask(q); });
+  $('voiceBtn').onclick = () => voiceAsk(true);
+  $('asstMic').onclick = () => voiceAsk(false);
 
   const openDay = k => { $('asstSheet').close(); Cal.select(k); };
   $('urgent').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) Cal.select(b.dataset.open); });
@@ -774,12 +891,18 @@ function wire() {
       settings: () => { showSettings = true; renderAsst(); },
       'settings-done': () => { showSettings = false; renderAsst(); if (tab === 'ask') llmCheck(); },
       'test-notif': () => notify('Test notification', 'Alerts are working.', 'test', todayKey()),
+      'draft-add': () => draftAct('add', +act.dataset.i),
+      'draft-edit': () => draftAct('edit', +act.dataset.i),
+      'draft-cancel': () => draftAct('cancel', +act.dataset.i),
+      'draft-undo': () => draftAct('undo', +act.dataset.i),
+      'draft-open': () => draftAct('open', +act.dataset.i),
     })[act.dataset.act]();
   });
   $('asstBody').addEventListener('change', e => {
     const t = e.target.closest('[data-toggle]'); if (!t) return;
     const k = t.dataset.toggle;
     if (k === 'notify') return setNotify(t.checked);
+    if (k === 'voiceSpeak') { Voice.speakOn = t.checked; return; }
     S[k] = t.checked; saveSettings(); checkAlerts();
   });
 
@@ -788,6 +911,7 @@ function wire() {
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
     if (e.key === 'a' || e.key === 'A') { e.preventDefault(); openAssistant(); }
     if (e.key === '/') { e.preventDefault(); openAssistant('ask'); }
+    if (e.key === 'v' || e.key === 'V') { e.preventDefault(); voiceAsk(true); }
   });
 
   document.addEventListener('cal:change', () => { checkAlerts(); if ($('asstSheet').open && tab === 'week' && !showSettings) renderAsst(); });
@@ -804,7 +928,7 @@ function init() {
   if (S.notify) registerPeriodicSync();
   // warm up the model in the background if the user already downloaded it
   if (localStorage.getItem('calendar-asst-model')) setTimeout(() => llmCheck(), 2500);
-  window.CalAssistant = { understand, analyzeWeek, parseRange: q => parseRange(norm(q)), open: openAssistant, ask, llm };
+  window.CalAssistant = { understand, analyzeWeek, parseRange: q => parseRange(norm(q)), open: openAssistant, ask, llm, addIntent, voiceAsk };
 }
 if (window.Cal && window.Cal.ready) init(); else document.addEventListener('cal:ready', init, { once: true });
 })();

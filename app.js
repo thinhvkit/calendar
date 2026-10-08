@@ -436,6 +436,41 @@ function qaKeepTyped() {
   $('qaHint').hidden = true; $('evTitle').focus();
 }
 
+/* Add an event straight from a confirmed draft (voice / Ask). Returns {date, id} for undo. */
+async function addFromDraft(d) {
+  const color = localStorage.getItem('calendar-last-color') || COLORS[0].id;
+  const ev = { id: uid(), title: d.title, time: d.time || '', desc: '', color, important: !!d.important };
+  if (d.repeat) ev.repeat = { freq: d.repeat, until: '', except: [] };
+  dayOf(d.date).events.push(ev);
+  await persist();
+  select(d.date);
+  return { date: d.date, id: ev.id };
+}
+async function removeAdded(ref) {
+  removeFromDay(ref.date, ref.id);
+  await persist(); renderMonth(); renderDay();
+}
+function openEditorWith(d) {
+  select(d.date);
+  openEditor(null);
+  qa.on = false; $('qaHint').hidden = true;
+  $('evTitle').value = d.title || '';
+  $('evDate').value = d.date;
+  $('evTime').value = d.time || '';
+  $('evAllDay').checked = false; syncAllDay();
+  $('evImportant').checked = !!d.important;
+  setRepeat(d.repeat || ''); syncRepeatSummary();
+}
+/* Mic inside the editor: say the whole event, quick add fills the fields. */
+async function editorVoice() {
+  if (!window.Voice || !Voice.supported) { $('evTitle').focus(); toast('Tap the 🎤 on your keyboard to dictate'); return; }
+  const said = await Voice.listen({ purpose: 'add' });
+  if (!said) return;
+  $('evTitle').value = said;
+  if (qa.on) { qa.off = false; qaRun(); }
+  $('evTitle').focus();
+}
+
 /* ---------------- event editor ---------------- */
 let repFreq = '';
 function setRepeat(freq) {
@@ -1233,6 +1268,7 @@ function wire() {
   $('evTime').addEventListener('input', () => qa.touched.add('time'));
   $('evImportant').addEventListener('change', () => qa.touched.add('important'));
   $('qaHint').addEventListener('click', e => { if (e.target.closest('#qaUndo')) qaKeepTyped(); });
+  $('evMic').addEventListener('click', editorVoice);
   $('eventForm').addEventListener('submit', saveEditor);
   $('evDelete').onclick = () => { const ed = editing; $('eventSheet').close(); if (ed) deleteEvent(ed.key, ed.origin, ed.id); };
   const syncMainSwatch = () => { const c = ($('eventForm').querySelector('input[name="color"]:checked') || {}).value; $('mainRow').style.setProperty('--day', colorOf(c)); };
@@ -1297,6 +1333,7 @@ window.Cal = {
   getDays: () => days, db, keyOf, parseKey, addDays, fmt, fmtTime, colorOf, esc, toast, isPhone, wireSheet, sorted, repeatText,
   expand: (a, b) => X.expand(days, a, b),
   select: (k) => select(k), openEditor: (k, id, origin) => { if (k) select(k); openEditor(id || null, origin || null); },
+  addFromDraft, removeAdded, openEditorWith, getSelected: () => selected,
   ready: false,
 };
 
