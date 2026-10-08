@@ -257,6 +257,11 @@
       <div class="vc-text" id="vcText" aria-live="polite"></div>
       <div class="vc-hints" id="vcHints"></div>
       <p class="vc-err" id="vcErr" role="alert" hidden></p>
+      <div class="vc-type" id="vcType" hidden>
+        <input class="input" id="vcInput" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" aria-label="Type or dictate">
+        <small>Tip: tap the 🎤 on your keyboard to dictate.</small>
+      </div>
+      <p class="vc-diag" id="vcDiag" hidden></p>
       <button type="button" class="vc-mic" id="vcMic" aria-label="Start or stop listening">
         <span class="ring r1"></span><span class="ring r2"></span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
       </button>
@@ -267,6 +272,7 @@
     </div>
     <footer class="sheet-foot">
       <button type="button" class="btn" id="vcCancel">Cancel</button>
+      <button type="button" class="btn subtle" id="vcTypeBtn">Type or dictate</button>
       <span class="spacer"></span>
       <button type="button" class="btn primary" id="vcDone" disabled>Done</button>
     </footer>

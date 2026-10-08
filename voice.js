@@ -23,38 +23,59 @@
   };
 
   let rec = null, resolveFn = null, finalText = '', interimText = '', purpose = 'ask', state = 'idle', gotSpeech = false, stopTimer = 0;
+  // watchdog: some devices (seen on iPhone Safari) never answer start(). Retry once in a simpler mode,
+  // then give up with a clear message and the typing / keyboard-dictation fallback.
+  let alive = false, attempt = 0, dogTimer = 0, events = [];
+  const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   function ui() {
     $('vcLang').querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === st.lang)));
     $('vcTitle').textContent = purpose === 'add' ? 'Say your event' : 'Ask or add by voice';
     const said = (finalText + ' ' + interimText).trim();
+    const typing = !$('vcType').hidden;
+    $('vcText').hidden = typing;
     $('vcText').innerHTML = said
       ? `<span class="fin">${esc(finalText)}</span> <span class="int">${esc(interimText)}</span>`
-      : `<span class="ph">${state === 'error' ? '' : state === 'listening' ? 'Listening…' : 'Starting…'}</span>`;
-    $('vcHints').innerHTML = said || state === 'error' ? '' : HINTS[purpose][st.lang].map(h => `<span>${esc(h)}</span>`).join('');
+      : `<span class="ph">${state === 'error' ? '' : state === 'listening' ? 'Listening…' : attempt > 1 ? 'Trying again…' : 'Starting the microphone…'}</span>`;
+    $('vcHints').innerHTML = said || state === 'error' || typing ? '' : HINTS[purpose][st.lang].map(h => `<span>${esc(h)}</span>`).join('');
     $('voiceSheet').dataset.state = state;
-    $('vcDone').disabled = !said;
+    $('vcDone').disabled = !(said || (typing && $('vcInput').value.trim()));
+    $('vcTypeBtn').hidden = typing;
   }
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  function setError(msg) {
+  function setError(msg, offerTyping = true) {
+    clearTimeout(dogTimer);
     state = 'error';
     $('vcErr').textContent = msg; $('vcErr').hidden = false;
+    $('vcDiag').textContent = `${IOS ? 'iOS' : 'browser'} · ${SR ? (g.SpeechRecognition ? 'SpeechRecognition' : 'webkitSpeechRecognition') : 'no speech API'} · tries ${attempt} · events: ${events.join(', ') || 'none'}`;
+    $('vcDiag').hidden = false;
     ui();
+    if (offerTyping && $('vcType').hidden) $('vcTypeBtn').classList.add('pulse');
   }
+  const mark = name => { alive = true; if (events[events.length - 1] !== name) events.push(name); };
 
-  function start() {
-    try { rec && rec.abort(); } catch {}
-    finalText = ''; interimText = ''; gotSpeech = false; state = 'starting';
-    $('vcErr').hidden = true;
+  function start(fresh = true) {
+    clearTimeout(dogTimer);
+    if (rec) { const r = rec; rec = null; r.onstart = r.onaudiostart = r.onsoundstart = r.onspeechstart = r.onresult = r.onerror = r.onend = null; try { r.abort(); } catch {} }
+    if (fresh) { attempt = 0; events = []; }
+    attempt++;
+    finalText = ''; interimText = ''; gotSpeech = false; alive = false; state = 'starting';
+    $('vcErr').hidden = true; $('vcDiag').hidden = true; $('vcTypeBtn').classList.remove('pulse');
     ui();
     if (!SR) { setError(noSupportMsg()); return; }
-    rec = new SR();
-    rec.lang = st.lang; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-    rec.onstart = () => { state = 'listening'; ui(); };
-    rec.onaudiostart = () => { state = 'listening'; ui(); };
-    rec.onspeechstart = () => { gotSpeech = true; };
-    rec.onresult = e => {
+    let r;
+    try { r = new SR(); } catch { setError('Voice couldn’t start on this device. Type instead, or use the 🎤 on your keyboard.'); return; }
+    rec = r;
+    r.lang = st.lang;
+    // first try: live words as you speak; retry: the most basic mode, which every engine supports
+    r.interimResults = attempt === 1; r.continuous = false;
+    if (attempt === 1) r.maxAlternatives = 1;
+    r.onstart = () => { mark('start'); state = 'listening'; ui(); };
+    r.onaudiostart = () => { mark('audio'); state = 'listening'; ui(); };
+    r.onsoundstart = () => { mark('sound'); };
+    r.onspeechstart = () => { mark('speech'); gotSpeech = true; };
+    r.onresult = e => { mark('result');
       let fin = '', int = '';
       for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i];
@@ -66,8 +87,9 @@
       clearTimeout(stopTimer);
       if (finalText && !interimText) stopTimer = setTimeout(() => finish(), 900);
     };
-    rec.onerror = e => {
+    r.onerror = e => {
       const code = e.error || 'error';
+      mark('error:' + code);
       if (code === 'aborted') return;
       if (code === 'no-speech') return setError('I didn’t hear anything. Tap the mic and try again.');
       if (code === 'not-allowed' || code === 'service-not-allowed')
@@ -78,18 +100,40 @@
       if (code === 'language-not-supported') return setError(`${LANGS[st.lang]} isn’t supported for voice on this device.`);
       setError('Voice stopped unexpectedly. Tap the mic to try again.');
     };
-    rec.onend = () => {
+    r.onend = () => {
+      mark('end');
+      clearTimeout(dogTimer);
       if (state === 'error') return;
       if (finalText || interimText) finish();
       else if (!gotSpeech) setError('I didn’t hear anything. Tap the mic and try again.');
       else { state = 'idle'; ui(); }
     };
-    try { rec.start(); } catch (err) { setError('Voice couldn’t start. Tap the mic to try again.'); }
+    try { r.start(); } catch (err) { mark('throw'); setError('Voice couldn’t start. Tap the mic to try again, or type instead.'); return; }
+    dogTimer = setTimeout(() => {
+      if (alive || rec !== r) return;
+      if (attempt < 2) { start(false); return; }
+      try { r.abort(); } catch {}
+      setError(IOS
+        ? 'Safari didn’t start the microphone. Check Settings → Apps → Safari → Microphone is set to Ask or Allow, and that Settings → General → Keyboard → Enable Dictation is on. For now, tap “Type or dictate” and use the 🎤 on your keyboard.'
+        : 'The microphone didn’t start. Check that this site may use the microphone, or tap “Type or dictate”.');
+    }, attempt === 1 ? 4000 : 5000);
+  }
+  function showTyping() {
+    clearTimeout(dogTimer);
+    if (rec) { const r = rec; rec = null; r.onend = r.onerror = r.onresult = null; try { r.abort(); } catch {} }
+    $('vcType').hidden = false; $('vcErr').hidden = true; $('vcTypeBtn').classList.remove('pulse');
+    state = 'idle';
+    $('vcInput').value = (finalText + ' ' + interimText).trim();
+    $('vcInput').placeholder = purpose === 'add' ? (st.lang === 'vi-VN' ? 'Ví dụ: Ăn trưa với Mai ngày mai 12 giờ' : 'e.g. Lunch with Mai tomorrow 12:30') : (st.lang === 'vi-VN' ? 'Hỏi, hoặc “thêm họp nhóm thứ 2 9 giờ”' : 'Ask, or “add lunch tomorrow at 12”');
+    $('vcInput').lang = st.lang;
+    ui();
+    $('vcInput').focus();   // runs inside the tap, so iOS opens the keyboard (with its 🎤 key)
   }
 
   function finish(cancel) {
-    clearTimeout(stopTimer);
-    const text = cancel ? null : (finalText + ' ' + interimText).trim() || null;
+    clearTimeout(stopTimer); clearTimeout(dogTimer);
+    const typed = !$('vcType').hidden ? $('vcInput').value.trim() : '';
+    const text = cancel ? null : (typed || (finalText + ' ' + interimText).trim()) || null;
     if (rec) { const r = rec; rec = null; r.onend = r.onerror = r.onresult = null; try { r.abort(); } catch {} }
     state = 'idle';
     const fn = resolveFn; resolveFn = null;
@@ -104,6 +148,7 @@
       resolveFn = res;
       const dlg = $('voiceSheet');
       $('vcPrivacy').hidden = !!st.seenPrivacy;
+      $('vcType').hidden = true; $('vcInput').value = '';
       if (!dlg.open) dlg.showModal();
       start();
     });
@@ -118,9 +163,12 @@
   /* ---------- speaking ---------- */
   let voices = [];
   const loadVoices = () => { try { voices = speechSynthesis.getVoices(); } catch {} };
-  if ('speechSynthesis' in g) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+  let voicesHooked = false;
+  const hookVoices = () => { if (voicesHooked || !('speechSynthesis' in g)) return; voicesHooked = true; loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; };
   function speak(text, lang = 'en-US') {
     if (!st.speak || !('speechSynthesis' in g) || !text) return;
+    hookVoices();
+    if (!voices.length) loadVoices();
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(String(text).slice(0, 320));
@@ -131,7 +179,7 @@
       speechSynthesis.speak(u);
     } catch {}
   }
-  const stopSpeaking = () => { try { speechSynthesis.cancel(); } catch {} };
+  const stopSpeaking = () => { try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch {} };
 
   function wire() {
     const dlg = $('voiceSheet'); if (!dlg) return;
@@ -139,7 +187,13 @@
       const b = e.target.closest('[data-lang]'); if (!b || b.dataset.lang === st.lang) return;
       st.lang = b.dataset.lang; save(); start();
     });
-    $('vcMic').onclick = () => { if (state === 'listening' && rec) { try { rec.stop(); } catch {} } else start(); };
+    $('vcMic').onclick = () => {
+      if (state === 'listening' && rec) { try { rec.stop(); } catch {} return; }
+      $('vcType').hidden = true; start();
+    };
+    $('vcTypeBtn').onclick = showTyping;
+    $('vcInput').addEventListener('input', ui);
+    $('vcInput').addEventListener('keydown', e => { if (e.key === 'Enter' && $('vcInput').value.trim()) { e.preventDefault(); finish(); } });
     $('vcDone').onclick = () => finish();
     $('vcCancel').onclick = () => finish(true);
     dlg.addEventListener('cancel', e => { e.preventDefault(); finish(true); });

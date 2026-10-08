@@ -969,3 +969,11 @@ html.viewer-open { overflow: hidden; }
   #voiceBtn:active { transform: scale(.94); }
 }
 .msg.user .vmark { opacity: .85; }
+
+.vc-type { width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.vc-type small { color: var(--ink-3); font-size: 12.5px; }
+.vc-type .input { font-size: 17px; }
+.vc-diag { margin: 0; font-size: 11px; color: var(--ink-3); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.voice[data-state="starting"] .vc-mic { background: color-mix(in srgb, var(--accent) 70%, var(--ink-3)); }
+#vcTypeBtn.pulse { box-shadow: 0 0 0 2px var(--accent); color: var(--accent); }
+.voice .sheet-foot .btn { white-space: nowrap; }
