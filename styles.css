@@ -223,8 +223,7 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .ind-note { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--sunken); }
 .ind-note svg { width: 12px; height: 12px; stroke-width: 2.2; }
 .ind-ph { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
-.ind-ph img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; background: var(--sunken); box-shadow: 0 0 0 1.5px var(--surface); opacity: 0; transition: opacity .25s; }
-.ind-ph img.in { opacity: 1; }
+.ind-ph svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ind-ph b { font-weight: 650; }
 .cell .cover { display: none; }
 .cell.selected { background: var(--sunken); }
@@ -825,9 +824,7 @@ html.viewer-open { overflow: hidden; }
   .ind-ev { display: inline-flex; }
   .ind-note { width: 7px; height: 2.5px; border-radius: 2px; background: var(--ink-3); opacity: .7; }
   .ind-note svg, .ind-ph b { display: none; }
-  .ind-ph img { width: 14px; height: 14px; box-shadow: 0 0 0 1px var(--line-2); }
-  .cell.filled .ind-ph img { box-shadow: 0 0 0 1.5px var(--surface); }
-  .cell.filled .ind-ph img, .cell.today .ind-ph img { box-shadow: 0 0 0 1.5px rgba(255,255,255,.9); }
+  .ind-ph svg { width: 12px; height: 12px; stroke-width: 2.2; }
 
   /* photo days: the photo becomes the tile */
   .grid { gap: 2px; }
