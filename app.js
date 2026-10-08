@@ -276,10 +276,8 @@ function renderMonth() {
     const firstPhoto = nPhotos ? info.photos[0].id : '';
     const label = `${fmt.full.format(d)}${evs.length ? `, ${evs.length} event${evs.length > 1 ? 's' : ''}` : ''}${info.note ? ', has note' : ''}${nPhotos ? `, ${nPhotos} photo${nPhotos > 1 ? 's' : ''}` : ''}`;
     const ind = `<span class="ind" aria-hidden="true"><span class="ind-ev">${evDots}</span>${info.note ? '<span class="ind-note"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></svg></span>' : ''}${nPhotos ? `<span class="ind-ph"><img alt="" data-thumb="${esc(firstPhoto)}" decoding="async">${nPhotos > 1 ? `<b>${nPhotos}</b>` : ''}</span>` : ''}</span>`;
-    if (nPhotos) cls.push('has-photo');
 
     html += `<button class="${cls.join(' ')}"${main ? ` style="--day:${colorOf(main.color)}"` : ''} data-k="${k}" aria-label="${esc(main ? `${label}, main event ${main.title}` : label)}" ${k === selected ? 'aria-current="date"' : ''} tabindex="${k === selected ? 0 : -1}">
-      ${nPhotos ? `<span class="cover" aria-hidden="true"><img alt="" data-thumb="${esc(firstPhoto)}" decoding="async"></span>` : ''}
       <span class="n">${d.getDate()}</span>
       <span class="chips">${chips}${more}</span>
       ${ind}
