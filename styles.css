@@ -977,3 +977,10 @@ html.viewer-open { overflow: hidden; }
 .voice[data-state="starting"] .vc-mic { background: color-mix(in srgb, var(--accent) 70%, var(--ink-3)); }
 #vcTypeBtn.pulse { box-shadow: 0 0 0 2px var(--accent); color: var(--accent); }
 .voice .sheet-foot .btn { white-space: nowrap; }
+
+/* Month slide: keep the moving grid inside the card so iOS Safari never widens the page mid-animation */
+html, body { overflow-x: hidden; }
+@supports (overflow: clip) { html, body { overflow-x: clip; } }
+.month { overflow: hidden; contain: paint; }
+@supports (overflow: clip) { .month { overflow: clip; } }
+.grid { backface-visibility: hidden; }
